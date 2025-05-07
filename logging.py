@@ -1,5 +1,5 @@
 import logging
-from database import create_connection  # Importa a função para criar a conexão
+from database import create_connection
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
@@ -9,7 +9,7 @@ class AuthService:
         try:
             logging.info(f"Tentativa de login: usuário='{user}'")
 
-            # Usando a função de criação da conexão
+
             conexao = create_connection()
 
             if conexao is None:
@@ -18,16 +18,16 @@ class AuthService:
 
             cursor = conexao.cursor()
 
-            # Consulta para verificar o nome e a senha
+
             query = "SELECT * FROM users WHERE nome=%s AND senha=%s"
             cursor.execute(query, (user, password))
-            result = cursor.fetchone()  # Verifica se existe algum registro com essas credenciais
+            result = cursor.fetchone()
 
-            # Fechar a conexão
+
             cursor.close()
             conexao.close()
 
-            if result:  # Se encontrar um resultado
+            if result:
                 logging.info("Login autorizado.")
                 return True
             else:

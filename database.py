@@ -12,7 +12,7 @@ def create_connection():
         if conexao.is_connected():
             print('CONECTADO PAI')
 
-        return conexao  # O return deve estar dentro do try
+        return conexao
     except mysql.connector.Error as erro:
         print(f'Erro detectado: {erro}')
-        return None  # Caso haja erro, retornamos None para indicar que a conexão falhou
+        return None
