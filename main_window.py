@@ -32,6 +32,14 @@ class MainWindow(QMainWindow):
         menubar.addAction(menu_entregadores)
         menubar.addAction(menu_sair)
 
+        #menu_principal = menubar.addMenu("☰ Menu")  # "☰" cria o ícone das 3 barrinhas
+
+       # menu_principal.addAction(menu_mapa)
+       # menu_principal.addAction(menu_pedidos)
+       # menu_principal.addAction(menu_entregadores)
+       # menu_principal.addSeparator()
+        #menu_principal.addAction(menu_sair)
+
         # Stack de páginas
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
