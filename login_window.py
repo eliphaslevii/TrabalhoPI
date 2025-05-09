@@ -4,7 +4,12 @@ from PyQt5.QtWidgets import (
     QMessageBox, QFormLayout, QCheckBox, QHBoxLayout
 )
 from PyQt5.QtCore import Qt, QSettings
+
 from auth_service import AuthService
+from database import create_connection, migrate_database
+from main_admin import MainAdmin
+from main_gestor import MainGestor
+from main_entregador import MainEntregador
 
 class LoginWindow(QWidget):
     def __init__(self):
@@ -19,15 +24,12 @@ class LoginWindow(QWidget):
     def _build_ui(self):
         layout = QFormLayout()
 
-        self.label_user = QLabel("Usuário:")
         self.input_user = QLineEdit()
-
-        self.label_pass = QLabel("Senha:")
         self.input_pass = QLineEdit()
         self.input_pass.setEchoMode(QLineEdit.Password)
 
         self.login_button = QPushButton("Entrar")
-        self.login_button.clicked.connect(self._on_login)
+        self.login_button.clicked.connect(self.login)
 
         self.remember_me = QCheckBox("Lembrar-me")
         self.show_password_cb = QCheckBox("Mostrar senha")
@@ -38,32 +40,53 @@ class LoginWindow(QWidget):
         opts.addStretch()
         opts.addWidget(self.show_password_cb)
 
-        layout.addRow(self.label_user, self.input_user)
-        layout.addRow(self.label_pass, self.input_pass)
+        layout.addRow(QLabel("Usuário:"), self.input_user)
+        layout.addRow(QLabel("Senha:"), self.input_pass)
         layout.addRow(opts)
         layout.addRow(self.login_button)
 
         self.setLayout(layout)
 
-    def _on_login(self):
-        user = self.input_user.text()
-        pwd  = self.input_pass.text()
+    def login(self):
+        user = self.input_user.text().strip()
+        pwd = self.input_pass.text().strip()
+
+        if not user or not pwd:
+            QMessageBox.warning(self, "Erro", "Preencha usuário e senha.")
+            return
 
         if AuthService.validate_credentials(user, pwd):
-            QMessageBox.information(self, "Sucesso", "Login efetuado com sucesso!")
             if self.remember_me.isChecked():
-                self._save_credentials(user, pwd)
+                self.settings.setValue("username", user)
+                self.settings.setValue("password", pwd)
+                self.settings.setValue("remember", True)
             else:
                 self.settings.clear()
-            self.close()  # fechará a janela de login; abra aqui sua MainWindow
+
+            conn = create_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT nivel FROM users WHERE nome=%s", (user,))
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            nivel = row[0] if row else None
+
+            if nivel == 1:
+                self.next_window = MainAdmin()
+            elif nivel == 2:
+                self.next_window = MainGestor()
+            elif nivel == 3:
+                self.next_window = MainEntregador()
+            else:
+                QMessageBox.critical(self, "Erro", "Nível de usuário inválido.")
+                return
+
+            self.next_window.show()
+            self.close()
         else:
             QMessageBox.warning(self, "Erro", "Usuário ou senha inválidos.")
             self.input_pass.clear()
-
-    def _save_credentials(self, user, pwd):
-        self.settings.setValue("username", user)
-        self.settings.setValue("password", pwd)
-        self.settings.setValue("remember", True)
 
     def _load_credentials(self):
         if self.settings.value("remember", False, type=bool):
@@ -76,7 +99,6 @@ class LoginWindow(QWidget):
         self.input_pass.setEchoMode(mode)
 
 if __name__ == "__main__":
-    # Primeiro, garantir que a tabela e usuários existam
     from database import migrate_database
     migrate_database()
 
