@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout
 
 class MainAdmin(QWidget):
     def __init__(self):
@@ -9,9 +9,7 @@ class MainAdmin(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout()
-
         label = QLabel("Bem-vindo, Administrador!")
         label.setStyleSheet("font-size: 18px; font-weight: bold;")
-
         layout.addWidget(label)
         self.setLayout(layout)

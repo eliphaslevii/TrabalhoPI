@@ -1,76 +1,105 @@
 import sys
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QLabel, QLineEdit, QPushButton,
-    QMessageBox, QFormLayout, QCheckBox, QHBoxLayout
+    QApplication, QWidget, QLabel, QLineEdit,
+    QPushButton, QVBoxLayout, QMessageBox
 )
-from PyQt5.QtCore import Qt, QSettings
-
-from auth_service import AuthService
-from database import create_connection, migrate_database
+import pymysql
 from main_admin import MainAdmin
 from main_gestor import MainGestor
 from main_entregador import MainEntregador
 
+# Função para criar conexão com MySQL
+def create_connection():
+    try:
+        conn = pymysql.connect(
+            host="127.0.0.1",
+            user="root",
+            password="",
+            database="rotas",
+            port=3306
+        )
+        print("[INFO] Conectado ao MySQL via PyMySQL (127.0.0.1:3306)")
+        return conn
+    except Exception as e:
+        print("[ERRO] Falha ao conectar ao MySQL:", e)
+        return None
+
+# Validação simples de login
+def validate_credentials(user, pwd):
+    conn = create_connection()
+    if not conn:
+        return False
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE nome=%s AND senha=%s", (user, pwd))
+        result = cursor.fetchone()
+        return result is not None
+    except Exception as e:
+        print("[ERRO] Erro ao consultar banco:", e)
+        return False
+    finally:
+        cursor.close()
+        conn.close()
+
+# Janela de Login
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
+        print("→ LoginWindow.__init__()")
         self.setWindowTitle("Login")
         self.setGeometry(100, 100, 300, 150)
-        self.settings = QSettings("PI", "App")
-        self._build_ui()
-        self._load_credentials()
-        self.input_user.setFocus()
+        self.next_window = None
+        self.setup_ui()
 
-    def _build_ui(self):
-        layout = QFormLayout()
+    def setup_ui(self):
+        print("→ UI construída")
+        layout = QVBoxLayout()
 
+        self.label_user = QLabel("Usuário:")
         self.input_user = QLineEdit()
+
+        self.label_pass = QLabel("Senha:")
         self.input_pass = QLineEdit()
         self.input_pass.setEchoMode(QLineEdit.Password)
 
-        self.login_button = QPushButton("Entrar")
-        self.login_button.clicked.connect(self.login)
+        self.btn_login = QPushButton("Entrar")
+        self.btn_login.clicked.connect(self.login)
 
-        self.remember_me = QCheckBox("Lembrar-me")
-        self.show_password_cb = QCheckBox("Mostrar senha")
-        self.show_password_cb.stateChanged.connect(self._toggle_password_visibility)
-
-        opts = QHBoxLayout()
-        opts.addWidget(self.remember_me)
-        opts.addStretch()
-        opts.addWidget(self.show_password_cb)
-
-        layout.addRow(QLabel("Usuário:"), self.input_user)
-        layout.addRow(QLabel("Senha:"), self.input_pass)
-        layout.addRow(opts)
-        layout.addRow(self.login_button)
+        layout.addWidget(self.label_user)
+        layout.addWidget(self.input_user)
+        layout.addWidget(self.label_pass)
+        layout.addWidget(self.input_pass)
+        layout.addWidget(self.btn_login)
 
         self.setLayout(layout)
+        print("→ Botão conectado")
 
     def login(self):
-        user = self.input_user.text().strip()
-        pwd = self.input_pass.text().strip()
+        print("→ login() chamado")
+        user = self.input_user.text()
+        pwd = self.input_pass.text()
+        print(f"[INFO] Tentativa de login: usuário='{user}'")
 
-        if not user or not pwd:
-            QMessageBox.warning(self, "Erro", "Preencha usuário e senha.")
-            return
-
-        if AuthService.validate_credentials(user, pwd):
-            if self.remember_me.isChecked():
-                self.settings.setValue("username", user)
-                self.settings.setValue("password", pwd)
-                self.settings.setValue("remember", True)
-            else:
-                self.settings.clear()
-
+        if validate_credentials(user, pwd):
+            print("[INFO] Login autorizado.")
             conn = create_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT nivel FROM users WHERE nome=%s", (user,))
-            row = cursor.fetchone()
-            cursor.close()
-            conn.close()
+            if not conn:
+                QMessageBox.critical(self, "Erro", "Falha na conexão com o banco.")
+                return
 
-            nivel = row[0] if row else None
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT nivel FROM users WHERE nome=%s", (user,))
+                row = cursor.fetchone()
+                nivel = row[0] if row else None
+            except Exception as e:
+                print("[ERRO] Erro ao buscar nível:", e)
+                QMessageBox.critical(self, "Erro", "Erro ao buscar dados.")
+                return
+            finally:
+                cursor.close()
+                conn.close()
 
             if nivel == 1:
                 self.next_window = MainAdmin()
@@ -83,26 +112,15 @@ class LoginWindow(QWidget):
                 return
 
             self.next_window.show()
-            self.close()
+            self.hide()
         else:
+            print("[INFO] Login inválido.")
             QMessageBox.warning(self, "Erro", "Usuário ou senha inválidos.")
-            self.input_pass.clear()
 
-    def _load_credentials(self):
-        if self.settings.value("remember", False, type=bool):
-            self.input_user.setText(self.settings.value("username", ""))
-            self.input_pass.setText(self.settings.value("password", ""))
-            self.remember_me.setChecked(True)
-
-    def _toggle_password_visibility(self, state):
-        mode = QLineEdit.Normal if state == Qt.Checked else QLineEdit.Password
-        self.input_pass.setEchoMode(mode)
-
+# Execução principal
 if __name__ == "__main__":
-    from database import migrate_database
-    migrate_database()
-
+    print("▶ Inicializando QApplication")
     app = QApplication(sys.argv)
-    login = LoginWindow()
-    login.show()
+    window = LoginWindow()
+    window.show()
     sys.exit(app.exec_())

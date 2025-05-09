@@ -4,18 +4,11 @@ class MainEntregador(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Painel do Entregador")
-        self.setGeometry(200, 200, 400, 300)
-        self._setup_ui()
+        self.setGeometry(100, 100, 400, 300)
+        self.setup_ui()
 
-    def _setup_ui(self):
+    def setup_ui(self):
         layout = QVBoxLayout()
-
-        label = QLabel("Bem-vindo, Entregador!")
-        label.setStyleSheet("font-size: 18px; font-weight: bold;")
-
-        info = QLabel("Aqui você verá suas rotas, pedidos e atualizações de entrega.")
-        info.setWordWrap(True)
-
+        label = QLabel("Bem-vindo ao painel do Entregador!")
         layout.addWidget(label)
-        layout.addWidget(info)
         self.setLayout(layout)

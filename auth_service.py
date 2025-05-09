@@ -1,36 +1,31 @@
-import logging
+# auth_service.py
 import time
-from database import create_connection
+import logging
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 class AuthService:
     @staticmethod
     def validate_credentials(user: str, password: str) -> bool:
-        """
-        Retorna True se 'user' e 'password' forem encontrados na tabela users.
-        Simula 3s de latência e faz log das tentativas.
-        """
-        logging.info(f"Tentativa de login: usuário='{user}'")
-        time.sleep(3)  # apenas para simular processamento
+        try:
+            logging.info(f"Tentativa de login: usuário='{user}'")
+            time.sleep(1)
 
-        conn = create_connection()
-        if not conn:
+            valid_users = {
+                "admin": "123",
+                "gestor": "456",
+                "entregador": "789"
+            }
+
+            if user in valid_users and valid_users[user] == password:
+                logging.info("Login autorizado.")
+                return True
+            else:
+                logging.warning("Login negado: credenciais inválidas.")
+                return False
+        except Exception as e:
+            logging.error(f"Erro ao validar usuário: {e}")
             return False
 
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT nivel FROM users WHERE nome = %s AND senha = %s",
-            (user, password)
-        )
-        result = cursor.fetchone()
-
-        cursor.close()
-        conn.close()
-
-        if result:
-            logging.info("Login autorizado.")
-            return True
-        else:
-            logging.warning("Login negado: credenciais inválidas.")
-            return False
+# opcional: expõe no nível de módulo
+validate_credentials = AuthService.validate_credentials
