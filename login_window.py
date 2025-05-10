@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QToolTip, QProgressBar
 )
 from PyQt5.QtCore import Qt, QSettings, QTimer, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QPixmap, QFont, QPalette, QColor, QIcon
+from PyQt5.QtGui import QPixmap, QFont, QPalette, QColor, QIcon, QPainter, QPen
 from database import migrate_database
 from auth_service import AuthService
 from main_window import MainWindow
@@ -17,6 +17,7 @@ class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Login")
+        self.setWindowIcon(QIcon("img/account.png"))
         self.setGeometry(100, 100, 350, 400)
         self.settings = QSettings("PI", "App")
         self.login_attempts = 0
@@ -73,32 +74,31 @@ class LoginWindow(QWidget):
             QCheckBox::indicator {
                 width: 14px;
                 height: 14px;
+                border: 1px solid rgba(128, 128, 128, 0.3);
+                border-radius: 3px;
+                background-color: white;
             }
             QCheckBox::indicator:unchecked {
-                border: 1px solid #2196F3;
+                border: 1px solid rgba(128, 128, 128, 0.3);
                 border-radius: 3px;
                 background-color: white;
             }
             QCheckBox::indicator:checked {
                 background-color: #2196F3;
-                border: 1px solid #2196F3;
+                border: 1px solid rgba(128, 128, 128, 0.3);
                 border-radius: 3px;
             }
             QCheckBox::indicator:hover {
-                border: 1px solid #1976D2;
+                border: 1px solid rgba(128, 128, 128, 0.5);
             }
             QProgressBar {
                 border: none;
                 background-color: #E0E0E0;
-                border-radius: 2px;
-                text-align: center;
-                height: 2px;
-                max-width: 200px;
-                margin: 0 auto;
+                border-radius: 1px;
             }
             QProgressBar::chunk {
                 background-color: #2196F3;
-                border-radius: 2px;
+                border-radius: 1px;
             }
         """)
 
@@ -166,12 +166,6 @@ class LoginWindow(QWidget):
         form_layout.addRow(user_label, self.input_user)
         form_layout.addRow(pass_label, self.input_pass)
 
-        # Barra de progresso (inicialmente oculta)
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        self.progress_bar.setMaximum(0)  # Modo indeterminado
-        self.progress_bar.setFixedWidth(250)
-
         # Checkboxes
         checkbox_layout = QVBoxLayout()
         checkbox_layout.setSpacing(10)
@@ -179,6 +173,7 @@ class LoginWindow(QWidget):
         
         self.remember_me = QCheckBox("Lembrar-me")
         self.remember_me.setToolTip("Salvar suas credenciais para o próximo login")
+        self.remember_me.stateChanged.connect(self._toggle_remember_me)
         
         self.show_password_cb = QCheckBox("Mostrar senha")
         self.show_password_cb.setToolTip("Mostrar/ocultar a senha digitada")
@@ -186,6 +181,24 @@ class LoginWindow(QWidget):
         
         checkbox_layout.addWidget(self.remember_me)
         checkbox_layout.addWidget(self.show_password_cb)
+
+        # Barra de progresso (inicialmente oculta)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setFixedHeight(3)
+        self.progress_bar.setFixedWidth(250)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: none;
+                background-color: #E0E0E0;
+                border-radius: 1px;
+            }
+            QProgressBar::chunk {
+                background-color: #2196F3;
+                border-radius: 1px;
+            }
+        """)
 
         # Botão de login
         self.btn_login = QPushButton("Entrar")
@@ -211,8 +224,8 @@ class LoginWindow(QWidget):
         self.btn_forgot.clicked.connect(self._forgot_password)
 
         layout.addLayout(form_layout)
-        layout.addWidget(self.progress_bar, alignment=Qt.AlignCenter)
         layout.addLayout(checkbox_layout)
+        layout.addWidget(self.progress_bar, alignment=Qt.AlignCenter)
         layout.addSpacing(10)
         layout.addWidget(self.btn_login, alignment=Qt.AlignCenter)
         layout.addWidget(self.btn_forgot, alignment=Qt.AlignCenter)
@@ -220,8 +233,22 @@ class LoginWindow(QWidget):
         self.setLayout(layout)
 
     def _toggle_password_visibility(self, state):
-        mode = QLineEdit.Normal if state == Qt.Checked else QLineEdit.Password
-        self.input_pass.setEchoMode(mode)
+        if state == Qt.Checked:
+            self.input_pass.setEchoMode(QLineEdit.Normal)
+            self.show_password_cb.setText("Mostrar senha")
+        else:
+            self.input_pass.setEchoMode(QLineEdit.Password)
+            self.show_password_cb.setText("Mostrar senha")
+
+    def _toggle_remember_me(self, state):
+        if state == Qt.Checked:
+            self.remember_me.setText("Lembrar-me")
+        else:
+            self.remember_me.setText("Lembrar-me")
+
+    def _toggle_show_password(self, state):
+        self._update_checkbox_style(self.show_password_cb, state == Qt.Checked)
+        self._toggle_password_visibility(state)
 
     def _save_credentials(self, user, pwd):
         if self.remember_me.isChecked():
@@ -256,10 +283,11 @@ class LoginWindow(QWidget):
 
         # Mostrar barra de progresso
         self.progress_bar.setVisible(True)
+        self.progress_bar.setMaximum(0)  # Modo indeterminado
         self.btn_login.setEnabled(False)
 
         # Simular delay de autenticação
-        QTimer.singleShot(1000, lambda: self._process_login(user, pwd))
+        QTimer.singleShot(800, lambda: self._process_login(user, pwd))
 
     def _process_login(self, user, pwd):
         if AuthService.validate_credentials(user, pwd):
