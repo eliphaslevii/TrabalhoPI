@@ -41,7 +41,7 @@ def migrate_database():
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     nome VARCHAR(50) NOT NULL UNIQUE,
                     senha VARCHAR(100) NOT NULL,
-                    nivel INT NOT NULL
+                    nivel INT NOT NULL COMMENT '1=admin, 2=entregador'
                 );
             """)
 
@@ -92,9 +92,8 @@ def migrate_database():
             if result['total'] == 0:
                 # Inserir usuários padrão apenas se não houver usuários
                 padroes = [
-                    ('admin', '123', 1),
-                    ('gestor', '456', 2),
-                    ('entregador', '789', 3),
+                    ('admin', '123', 1),  # Admin
+                    ('entregador', '789', 2),  # Entregador
                 ]
                 for nome, senha, nivel in padroes:
                     cursor.execute("""
