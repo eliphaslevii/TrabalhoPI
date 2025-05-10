@@ -26,20 +26,28 @@ class LoginWindow(QWidget):
         self.setStyleSheet("""
             QWidget {
                 background-color: #f0f0f0;
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
             QLabel {
                 color: #000000;
-                font-size: 12px;
+                font-size: 11px;
+                font-weight: normal;
             }
             QLineEdit {
                 padding: 8px;
-                border: 2px solid #cccccc;
+                padding-left: 35px;
+                border: 1px solid #cccccc;
                 border-radius: 5px;
                 background-color: white;
-                font-size: 12px;
+                font-size: 11px;
+                text-align: left;
+            }
+            QLineEdit::placeholder {
+                color: rgba(0, 0, 0, 0.3);
+                text-align: left;
             }
             QLineEdit:focus {
-                border: 2px solid #2196F3;
+                border: 2px solid #808080;
             }
             QPushButton {
                 background-color: #2196F3;
@@ -47,7 +55,7 @@ class LoginWindow(QWidget):
                 padding: 10px;
                 border: none;
                 border-radius: 5px;
-                font-size: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 min-width: 100px;
             }
@@ -59,36 +67,38 @@ class LoginWindow(QWidget):
             }
             QCheckBox {
                 color: #000000;
-                font-size: 12px;
-                font-weight: bold;
+                font-size: 10px;
+                font-weight: normal;
             }
             QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
+                width: 14px;
+                height: 14px;
             }
             QCheckBox::indicator:unchecked {
-                border: 2px solid #2196F3;
-                border-radius: 4px;
+                border: 1px solid #2196F3;
+                border-radius: 3px;
                 background-color: white;
             }
             QCheckBox::indicator:checked {
                 background-color: #2196F3;
-                border: 2px solid #2196F3;
-                border-radius: 4px;
+                border: 1px solid #2196F3;
+                border-radius: 3px;
             }
             QCheckBox::indicator:hover {
-                border: 2px solid #1976D2;
+                border: 1px solid #1976D2;
             }
             QProgressBar {
                 border: none;
                 background-color: #E0E0E0;
-                border-radius: 3px;
+                border-radius: 2px;
                 text-align: center;
-                height: 3px;
+                height: 2px;
+                max-width: 200px;
+                margin: 0 auto;
             }
             QProgressBar::chunk {
                 background-color: #2196F3;
-                border-radius: 3px;
+                border-radius: 2px;
             }
         """)
 
@@ -96,13 +106,14 @@ class LoginWindow(QWidget):
         layout = QVBoxLayout()
         layout.setSpacing(15)
         layout.setContentsMargins(30, 30, 30, 30)
+        layout.setAlignment(Qt.AlignCenter)
 
         # Logo
         self.logo_label = QLabel()
-        logo_pixmap = QPixmap("img/account.png")
+        logo_pixmap = QPixmap("img/user.png")
         if not logo_pixmap.isNull():
             scaled_pixmap = logo_pixmap.scaled(
-                120, 120,
+                100, 100,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation
             )
@@ -110,39 +121,61 @@ class LoginWindow(QWidget):
         self.logo_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.logo_label)
 
-        layout.addSpacing(20)
+        layout.addSpacing(10)
 
         # Formulário
         form_layout = QFormLayout()
         form_layout.setSpacing(15)
         form_layout.setLabelAlignment(Qt.AlignRight)
+        form_layout.setFormAlignment(Qt.AlignCenter)
+        form_layout.setContentsMargins(0, 0, 0, 0)
 
         # Campo de usuário
         self.input_user = QLineEdit()
-        self.input_user.setPlaceholderText("Digite seu usuário")
+        self.input_user.setPlaceholderText("username")
         self.input_user.setMinimumHeight(35)
+        self.input_user.setMinimumWidth(250)
         self.input_user.setToolTip("Digite seu nome de usuário")
         self.input_user.returnPressed.connect(self.login)
 
         # Campo de senha
         self.input_pass = QLineEdit()
         self.input_pass.setEchoMode(QLineEdit.Password)
-        self.input_pass.setPlaceholderText("Digite sua senha")
+        self.input_pass.setPlaceholderText("password")
         self.input_pass.setMinimumHeight(35)
+        self.input_pass.setMinimumWidth(250)
         self.input_pass.setToolTip("Digite sua senha")
         self.input_pass.returnPressed.connect(self.login)
 
-        form_layout.addRow("Usuário:", self.input_user)
-        form_layout.addRow("Senha:", self.input_pass)
+        # Criar labels com ícones
+        user_label = QLabel()
+        user_pixmap = QPixmap("img/user.png")
+        user_pixmap = user_pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        user_label.setPixmap(user_pixmap)
+
+        pass_label = QLabel()
+        pass_pixmap = QPixmap("img/padlockk.png")
+        pass_pixmap = pass_pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pass_label.setPixmap(pass_pixmap)
+        pass_label.setStyleSheet("""
+            QLabel {
+                background-color: transparent;
+            }
+        """)
+
+        form_layout.addRow(user_label, self.input_user)
+        form_layout.addRow(pass_label, self.input_pass)
 
         # Barra de progresso (inicialmente oculta)
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setMaximum(0)  # Modo indeterminado
+        self.progress_bar.setFixedWidth(250)
 
         # Checkboxes
-        checkbox_layout = QHBoxLayout()
-        checkbox_layout.setSpacing(20)
+        checkbox_layout = QVBoxLayout()
+        checkbox_layout.setSpacing(10)
+        checkbox_layout.setAlignment(Qt.AlignCenter)
         
         self.remember_me = QCheckBox("Lembrar-me")
         self.remember_me.setToolTip("Salvar suas credenciais para o próximo login")
@@ -157,6 +190,7 @@ class LoginWindow(QWidget):
         # Botão de login
         self.btn_login = QPushButton("Entrar")
         self.btn_login.setMinimumHeight(40)
+        self.btn_login.setMinimumWidth(250)
         self.btn_login.clicked.connect(self.login)
         self.btn_login.setToolTip("Clique para fazer login (ou pressione Enter)")
 
@@ -177,7 +211,7 @@ class LoginWindow(QWidget):
         self.btn_forgot.clicked.connect(self._forgot_password)
 
         layout.addLayout(form_layout)
-        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.progress_bar, alignment=Qt.AlignCenter)
         layout.addLayout(checkbox_layout)
         layout.addSpacing(10)
         layout.addWidget(self.btn_login, alignment=Qt.AlignCenter)
