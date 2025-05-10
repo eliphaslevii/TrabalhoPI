@@ -7,6 +7,10 @@ import pymysql
 from main_admin import MainAdmin
 from main_gestor import MainGestor
 from main_entregador import MainEntregador
+from database import migrate_database
+
+# Criar banco de dados e tabelas ao iniciar
+migrate_database()
 
 # Função para criar conexão com MySQL
 def create_connection():
@@ -94,7 +98,7 @@ class LoginWindow(QWidget):
                 row = cursor.fetchone()
                 nivel = row[0] if row else None
             except Exception as e:
-                print("[ERRO] Erro ao buscar nível:", e)
+                print(f"{e}")
                 QMessageBox.critical(self, "Erro", "Erro ao buscar dados.")
                 return
             finally:
