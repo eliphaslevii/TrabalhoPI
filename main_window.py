@@ -11,6 +11,8 @@ from PyQt5.QtGui import QIcon
 from auth_service import AuthService
 from main_styles import get_dark_theme_styles, get_light_theme_styles
 from database import create_connection
+# Importar o widget de mapa
+from map_widget import MapWidget
 
 # Páginas do sistema
 class RoutesPage(QWidget):
@@ -486,12 +488,11 @@ class MapWindow(QDialog):
     def setup_ui(self):
         layout = QVBoxLayout(self)
         
-        # Área do mapa (placeholder)
-        map_label = QLabel("Área do Mapa")
-        map_label.setAlignment(Qt.AlignCenter)
-        map_label.setStyleSheet("background-color: #e0e0e0; border-radius: 4px;")
-        layout.addWidget(map_label)
-
+        # Usar o widget de mapa em vez do placeholder
+        from map_widget import MapWidget
+        self.map_widget = MapWidget(self)
+        layout.addWidget(self.map_widget)
+        
         # Botões de controle
         buttons_layout = QHBoxLayout()
         
@@ -836,4 +837,4 @@ class MainWindow(QMainWindow):
 
     def _show_development_message(self):
         QMessageBox.information(self, "Em Desenvolvimento", 
-                              "Esta funcionalidade está em desenvolvimento.") 
+                              "Esta funcionalidade está em desenvolvimento.")

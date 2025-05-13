@@ -5,12 +5,13 @@ from PyQt5.QtWidgets import (
     QPushButton, QVBoxLayout, QMessageBox, QCheckBox, QHBoxLayout, QFormLayout,
     QToolTip, QProgressBar
 )
-from PyQt5.QtCore import Qt, QSettings, QTimer, QPropertyAnimation, QEasingCurve, QPoint
+from PyQt5.QtCore import Qt, QSettings, QTimer, QPropertyAnimation, QEasingCurve, QPoint, QSize
 from PyQt5.QtGui import QPixmap, QFont, QPalette, QColor, QIcon, QPainter, QPen
 from database import migrate_database
 from auth_service import AuthService
 from main_window import MainWindow
 from login_styles import get_dark_theme_styles, get_light_theme_styles
+
 
 # Criar banco de dados e tabelas ao iniciar
 migrate_database()
