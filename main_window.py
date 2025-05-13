@@ -501,6 +501,45 @@ class MapWindow(QDialog):
         
         layout.addLayout(buttons_layout)
 
+class ThemeDialog(QDialog):
+    def __init__(self, parent=None, current_theme=False):
+        super().__init__(parent)
+        self.setWindowTitle("Alterar Tema")
+        self.current_theme = current_theme
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Título
+        title_label = QLabel("Escolha o tema:")
+        title_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title_label)
+        
+        # Botões de tema
+        theme_layout = QHBoxLayout()
+        
+        light_btn = QPushButton("Tema Claro")
+        light_btn.setIcon(QIcon("img/sun.png"))
+        light_btn.clicked.connect(lambda: self.select_theme(False))
+        theme_layout.addWidget(light_btn)
+        
+        dark_btn = QPushButton("Tema Escuro")
+        dark_btn.setIcon(QIcon("img/moon.png"))
+        dark_btn.clicked.connect(lambda: self.select_theme(True))
+        theme_layout.addWidget(dark_btn)
+        
+        layout.addLayout(theme_layout)
+        
+        # Botão de fechar
+        close_btn = QPushButton("Fechar")
+        close_btn.clicked.connect(self.close)
+        layout.addWidget(close_btn)
+
+    def select_theme(self, is_dark):
+        self.current_theme = is_dark
+        self.accept()
+
 # Janela Principal
 class MainWindow(QMainWindow):
     def __init__(self, username: str):
@@ -634,8 +673,8 @@ class MainWindow(QMainWindow):
             system_settings_action.triggered.connect(lambda: self.change_page("settings"))
             settings_menu.addAction(system_settings_action)
             
-            theme_action = QAction("Alternar Tema", self)
-            theme_action.triggered.connect(self._toggle_theme)
+            theme_action = QAction("Alterar Tema", self)
+            theme_action.triggered.connect(self.show_theme_dialog)
             settings_menu.addAction(theme_action)
 
         else:
@@ -683,6 +722,13 @@ class MainWindow(QMainWindow):
             performance_action.triggered.connect(self.view_my_performance)
             profile_menu.addAction(performance_action)
 
+            # Menu Configurações (Entregador)
+            settings_menu = menubar.addMenu("Configurações")
+            
+            theme_action = QAction("Alterar Tema", self)
+            theme_action.triggered.connect(self.show_theme_dialog)
+            settings_menu.addAction(theme_action)
+
         # Menu Sair (Comum para ambos)
         logout_action = QAction("Sair", self)
         logout_action.triggered.connect(self.logout)
@@ -728,9 +774,12 @@ class MainWindow(QMainWindow):
         else:
             self.setStyleSheet(get_light_theme_styles())
 
-    def _toggle_theme(self):
-        self._show_development_message()
-        return
+    def show_theme_dialog(self):
+        dialog = ThemeDialog(self, self.is_dark_theme)
+        if dialog.exec_() == QDialog.Accepted:
+            self.is_dark_theme = dialog.current_theme
+            self.settings.setValue("dark_theme", self.is_dark_theme)
+            self._apply_theme()
 
     def logout(self):
         reply = QMessageBox.question(self, 'Sair', 
