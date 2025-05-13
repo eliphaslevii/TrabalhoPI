@@ -476,6 +476,31 @@ class ManageRoutesDialog(QDialog):
             
             self.routes_table.setCellWidget(row, 5, actions_widget)
 
+class MapWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Visualização do Mapa")
+        self.setGeometry(100, 100, 800, 600)
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Área do mapa (placeholder)
+        map_label = QLabel("Área do Mapa")
+        map_label.setAlignment(Qt.AlignCenter)
+        map_label.setStyleSheet("background-color: #e0e0e0; border-radius: 4px;")
+        layout.addWidget(map_label)
+
+        # Botões de controle
+        buttons_layout = QHBoxLayout()
+        
+        close_btn = QPushButton("Fechar")
+        close_btn.clicked.connect(self.close)
+        buttons_layout.addWidget(close_btn)
+        
+        layout.addLayout(buttons_layout)
+
 # Janela Principal
 class MainWindow(QMainWindow):
     def __init__(self, username: str):
@@ -548,6 +573,10 @@ class MainWindow(QMainWindow):
 
             # Menu Mapa (Admin)
             map_menu = menubar.addMenu("Mapa")
+            
+            view_map_action = QAction("Ver Mapa", self)
+            view_map_action.triggered.connect(self.view_map)
+            map_menu.addAction(view_map_action)
             
             view_all_routes_action = QAction("Visualizar Todas as Rotas", self)
             view_all_routes_action.triggered.connect(self.view_all_routes_map)
@@ -735,6 +764,10 @@ class MainWindow(QMainWindow):
 
     def monitor_traffic(self):
         self._show_development_message()
+
+    def view_map(self):
+        dialog = MapWindow(self)
+        dialog.exec_()
 
     # Métodos para Entregador
     def view_route_history(self):
