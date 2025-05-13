@@ -546,6 +546,21 @@ class MainWindow(QMainWindow):
             assign_routes_action.triggered.connect(self.assign_routes)
             routes_menu.addAction(assign_routes_action)
 
+            # Menu Mapa (Admin)
+            map_menu = menubar.addMenu("Mapa")
+            
+            view_all_routes_action = QAction("Visualizar Todas as Rotas", self)
+            view_all_routes_action.triggered.connect(self.view_all_routes_map)
+            map_menu.addAction(view_all_routes_action)
+            
+            optimize_routes_action = QAction("Otimizar Rotas", self)
+            optimize_routes_action.triggered.connect(self.optimize_routes)
+            map_menu.addAction(optimize_routes_action)
+            
+            traffic_monitor_action = QAction("Monitor de Tráfego", self)
+            traffic_monitor_action.triggered.connect(self.monitor_traffic)
+            map_menu.addAction(traffic_monitor_action)
+
             # Menu Entregadores (Admin)
             couriers_menu = menubar.addMenu("Entregadores")
             
@@ -606,6 +621,17 @@ class MainWindow(QMainWindow):
             route_history_action.triggered.connect(self.view_route_history)
             routes_menu.addAction(route_history_action)
 
+            # Menu Mapa (Entregador)
+            map_menu = menubar.addMenu("Mapa")
+            
+            view_my_route_action = QAction("Minha Rota Atual", self)
+            view_my_route_action.triggered.connect(self.view_my_current_route)
+            map_menu.addAction(view_my_route_action)
+            
+            navigation_action = QAction("Navegação", self)
+            navigation_action.triggered.connect(self.navigation)
+            map_menu.addAction(navigation_action)
+
             # Menu Entregas (Entregador)
             deliveries_menu = menubar.addMenu("Minhas Entregas")
             
@@ -634,6 +660,7 @@ class MainWindow(QMainWindow):
         menubar.addAction(logout_action)
 
     def change_page(self, page_name):
+        self._show_development_message()
         page_map = {
             "routes": 0,
             "deliveries": 1,
@@ -651,160 +678,20 @@ class MainWindow(QMainWindow):
         status_bar.showMessage("Pronto")
 
     def manage_routes(self):
-        dialog = ManageRoutesDialog(self)
-        dialog.exec_()
+        self._show_development_message()
+        return
 
     def add_delivery(self):
-        dialog = AddDeliveryDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            self.routes_page.refresh_routes()
+        self._show_development_message()
+        return
 
     def generate_daily_report(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Relatório Diário")
-        layout = QVBoxLayout(dialog)
-        
-        # Seleção de data
-        date_edit = QDateEdit()
-        date_edit.setDate(QDate.currentDate())
-        date_edit.setCalendarPopup(True)
-        layout.addWidget(QLabel("Selecione a data:"))
-        layout.addWidget(date_edit)
-        
-        # Tabela de resultados
-        table = QTableWidget()
-        table.setColumnCount(4)
-        table.setHorizontalHeaderLabels(["Rota", "Total Entregas", "Entregues", "Pendentes"])
-        layout.addWidget(table)
-        
-        # Botões
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
-            Qt.Horizontal, dialog)
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
-        layout.addWidget(buttons)
-        
-        def load_report():
-            selected_date = date_edit.date().toString("yyyy-MM-dd")
-            conn = create_connection()
-            if not conn:
-                return
-            
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT 
-                            r.nome as rota,
-                            COUNT(e.id) as total_entregas,
-                            SUM(CASE WHEN e.status = 'entregue' THEN 1 ELSE 0 END) as entregues,
-                            SUM(CASE WHEN e.status IN ('pendente', 'em_andamento') THEN 1 ELSE 0 END) as pendentes
-                        FROM rotas r
-                        LEFT JOIN entregas e ON r.id = e.rota_id
-                        WHERE DATE(r.data_criacao) = %s
-                        GROUP BY r.id, r.nome
-                    """, (selected_date,))
-                    
-                    resultados = cursor.fetchall()
-                    table.setRowCount(len(resultados))
-                    
-                    for i, row in enumerate(resultados):
-                        table.setItem(i, 0, QTableWidgetItem(row['rota']))
-                        table.setItem(i, 1, QTableWidgetItem(str(row['total_entregas'])))
-                        table.setItem(i, 2, QTableWidgetItem(str(row['entregues'])))
-                        table.setItem(i, 3, QTableWidgetItem(str(row['pendentes'])))
-            finally:
-                conn.close()
-        
-        date_edit.dateChanged.connect(load_report)
-        load_report()
-        
-        dialog.exec_()
+        self._show_development_message()
+        return
 
     def generate_monthly_report(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Relatório Mensal")
-        layout = QVBoxLayout(dialog)
-        
-        # Seleção de mês/ano
-        month_combo = QComboBox()
-        for i in range(1, 13):
-            month_combo.addItem(QDate(2000, i, 1).toString("MMMM"), i)
-        month_combo.setCurrentIndex(QDate.currentDate().month() - 1)
-        
-        year_spin = QSpinBox()
-        year_spin.setRange(2000, 2100)
-        year_spin.setValue(QDate.currentDate().year())
-        
-        date_layout = QHBoxLayout()
-        date_layout.addWidget(QLabel("Mês:"))
-        date_layout.addWidget(month_combo)
-        date_layout.addWidget(QLabel("Ano:"))
-        date_layout.addWidget(year_spin)
-        layout.addLayout(date_layout)
-        
-        # Tabela de resultados
-        table = QTableWidget()
-        table.setColumnCount(5)
-        table.setHorizontalHeaderLabels([
-            "Data", "Total Rotas", "Total Entregas", 
-            "Entregues", "Taxa de Entrega"
-        ])
-        layout.addWidget(table)
-        
-        # Botões
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
-            Qt.Horizontal, dialog)
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
-        layout.addWidget(buttons)
-        
-        def load_report():
-            month = month_combo.currentData()
-            year = year_spin.value()
-            
-            conn = create_connection()
-            if not conn:
-                return
-            
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT 
-                            DATE(r.data_criacao) as data,
-                            COUNT(DISTINCT r.id) as total_rotas,
-                            COUNT(e.id) as total_entregas,
-                            SUM(CASE WHEN e.status = 'entregue' THEN 1 ELSE 0 END) as entregues
-                        FROM rotas r
-                        LEFT JOIN entregas e ON r.id = e.rota_id
-                        WHERE MONTH(r.data_criacao) = %s AND YEAR(r.data_criacao) = %s
-                        GROUP BY DATE(r.data_criacao)
-                        ORDER BY data
-                    """, (month, year))
-                    
-                    resultados = cursor.fetchall()
-                    table.setRowCount(len(resultados))
-                    
-                    for i, row in enumerate(resultados):
-                        table.setItem(i, 0, QTableWidgetItem(str(row['data'])))
-                        table.setItem(i, 1, QTableWidgetItem(str(row['total_rotas'])))
-                        table.setItem(i, 2, QTableWidgetItem(str(row['total_entregas'])))
-                        table.setItem(i, 3, QTableWidgetItem(str(row['entregues'])))
-                        
-                        # Calcular taxa de entrega
-                        taxa = 0
-                        if row['total_entregas'] > 0:
-                            taxa = (row['entregues'] / row['total_entregas']) * 100
-                        table.setItem(i, 4, QTableWidgetItem(f"{taxa:.1f}%"))
-            finally:
-                conn.close()
-        
-        month_combo.currentIndexChanged.connect(load_report)
-        year_spin.valueChanged.connect(load_report)
-        load_report()
-        
-        dialog.exec_()
+        self._show_development_message()
+        return
 
     def _apply_theme(self):
         if self.is_dark_theme:
@@ -813,9 +700,8 @@ class MainWindow(QMainWindow):
             self.setStyleSheet(get_light_theme_styles())
 
     def _toggle_theme(self):
-        self.is_dark_theme = not self.is_dark_theme
-        self.settings.setValue("dark_theme", self.is_dark_theme)
-        self._apply_theme()
+        self._show_development_message()
+        return
 
     def logout(self):
         reply = QMessageBox.question(self, 'Sair', 
@@ -827,34 +713,45 @@ class MainWindow(QMainWindow):
 
     # Métodos para Admin
     def manage_couriers(self):
-        # Será implementado posteriormente
-        pass
+        self._show_development_message()
 
     def assign_routes(self):
-        # Será implementado posteriormente
-        pass
+        self._show_development_message()
 
     def view_courier_performance(self):
-        # Será implementado posteriormente
-        pass
+        self._show_development_message()
 
     def manage_deliveries(self):
-        # Será implementado posteriormente
-        pass
+        self._show_development_message()
 
     def generate_performance_report(self):
-        # Será implementado posteriormente
-        pass
+        self._show_development_message()
+
+    def view_all_routes_map(self):
+        self._show_development_message()
+
+    def optimize_routes(self):
+        self._show_development_message()
+
+    def monitor_traffic(self):
+        self._show_development_message()
 
     # Métodos para Entregador
     def view_route_history(self):
-        # Será implementado posteriormente
-        pass
+        self._show_development_message()
 
     def update_delivery_status(self):
-        # Será implementado posteriormente
-        pass
+        self._show_development_message()
 
     def view_my_performance(self):
-        # Será implementado posteriormente
-        pass 
+        self._show_development_message()
+
+    def view_my_current_route(self):
+        self._show_development_message()
+
+    def navigation(self):
+        self._show_development_message()
+
+    def _show_development_message(self):
+        QMessageBox.information(self, "Em Desenvolvimento", 
+                              "Esta funcionalidade está em desenvolvimento.") 
