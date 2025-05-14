@@ -13,4 +13,12 @@ from .route_history_window import RouteHistoryWindow
 from .update_delivery_status_window import UpdateDeliveryStatusWindow
 from .my_performance_window import MyPerformanceWindow
 from .current_route_window import CurrentRouteWindow
-from .navigation_window import NavigationWindow 
+from .navigation_window import NavigationWindow
+from .manage_routes_window import ManageRoutesWindow
+from .view_routes_window import ViewRoutesWindow
+from .daily_report_window import DailyReportWindow
+from .monthly_report_window import MonthlyReportWindow
+from .view_all_deliveries_window import ViewAllDeliveriesWindow
+from .system_settings_window import SystemSettingsWindow
+from .my_deliveries_window import MyDeliveriesWindow
+from .my_profile_window import MyProfileWindow 

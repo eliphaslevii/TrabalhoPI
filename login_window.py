@@ -20,8 +20,16 @@ class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Login")
+        self.resize(400, 300)  # Tamanho da tela de login
+
+        # Centraliza a janela na tela
+        frameGm = self.frameGeometry()
+        screen = QApplication.primaryScreen().availableGeometry().center()
+        frameGm.moveCenter(screen)
+        pos = frameGm.topLeft()
+        self.move(pos.x(), pos.y() - 30)  # Sobe 30 pixels
+
         self.setWindowIcon(QIcon("img/account.png"))
-        self.setGeometry(100, 100, 350, 400)
         self.settings = QSettings("PI", "App")
         self.login_attempts = 0
         self.max_attempts = 3
