@@ -7,12 +7,19 @@ from PyQt5.QtWidgets import (
     QGroupBox
 )
 from PyQt5.QtCore import Qt, QSettings, QDate
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 from auth_service import AuthService
 from main_styles import get_dark_theme_styles, get_light_theme_styles
 from database import create_connection
-# Importar o widget de mapa
 from map_widget import MapWidget
+from windows import (
+    NewRouteWindow, NewDeliveryWindow, UpdateRoutesWindow,
+    ManageCouriersWindow, AssignRoutesWindow, CourierPerformanceWindow,
+    ManageDeliveriesWindow, PerformanceReportWindow, AllRoutesMapWindow,
+    OptimizeRoutesWindow, TrafficMonitorWindow, RouteHistoryWindow,
+    UpdateDeliveryStatusWindow, MyPerformanceWindow, CurrentRouteWindow,
+    NavigationWindow
+)
 
 # Páginas do sistema
 class RoutesPage(QWidget):
@@ -23,43 +30,194 @@ class RoutesPage(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout(self)
         
+        # Stacked Widget para as páginas
+        self.stacked_widget = QStackedWidget()
+        
+        # Página principal de rotas
+        self.main_page = QWidget()
+        main_layout = QVBoxLayout(self.main_page)
+        
         # Tabela de rotas
         self.routes_table = QTableWidget()
         self.routes_table.setColumnCount(5)
         self.routes_table.setHorizontalHeaderLabels(["ID", "Nome", "Data", "Status", "Entregador"])
         self.routes_table.horizontalHeader().setStretchLastSection(True)
-        layout.addWidget(self.routes_table)
+        main_layout.addWidget(self.routes_table)
 
         # Botões de ação
         buttons_layout = QHBoxLayout()
         
         self.add_route_btn = QPushButton("Nova Rota")
-        self.add_route_btn.clicked.connect(self.add_route)
+        self.add_route_btn.clicked.connect(self.show_new_route)
         buttons_layout.addWidget(self.add_route_btn)
         
         self.add_delivery_btn = QPushButton("Nova Entrega")
-        self.add_delivery_btn.clicked.connect(self.add_delivery)
+        self.add_delivery_btn.clicked.connect(self.show_new_delivery)
         buttons_layout.addWidget(self.add_delivery_btn)
         
         self.refresh_btn = QPushButton("Atualizar")
-        self.refresh_btn.clicked.connect(self.refresh_routes)
+        self.refresh_btn.clicked.connect(self.show_update_routes)
         buttons_layout.addWidget(self.refresh_btn)
         
-        layout.addLayout(buttons_layout)
+        main_layout.addLayout(buttons_layout)
+        
+        # Página de Nova Rota
+        self.new_route_page = QWidget()
+        new_route_layout = QVBoxLayout(self.new_route_page)
+        
+        # Formulário de Nova Rota
+        form_group = QGroupBox("Nova Rota")
+        form_layout = QFormLayout()
+        
+        self.nome_input = QLineEdit()
+        self.entregador_combo = QComboBox()
+        self.carregar_entregadores()
+        
+        form_layout.addRow("Nome da Rota:", self.nome_input)
+        form_layout.addRow("Entregador:", self.entregador_combo)
+        
+        form_group.setLayout(form_layout)
+        new_route_layout.addWidget(form_group)
+        
+        # Botões de ação
+        buttons_layout = QHBoxLayout()
+        
+        save_btn = QPushButton("Salvar")
+        save_btn.clicked.connect(self.save_new_route)
+        buttons_layout.addWidget(save_btn)
+        
+        back_btn = QPushButton("Voltar")
+        back_btn.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.main_page))
+        buttons_layout.addWidget(back_btn)
+        
+        new_route_layout.addLayout(buttons_layout)
+        
+        # Página de Nova Entrega
+        self.new_delivery_page = QWidget()
+        new_delivery_layout = QVBoxLayout(self.new_delivery_page)
+        
+        # Formulário de Nova Entrega
+        form_group = QGroupBox("Nova Entrega")
+        form_layout = QFormLayout()
+        
+        self.rua_input = QLineEdit()
+        self.numero_input = QLineEdit()
+        self.bairro_input = QLineEdit()
+        self.cidade_input = QLineEdit()
+        self.estado_input = QLineEdit()
+        self.cep_input = QLineEdit()
+        self.complemento_input = QTextEdit()
+        self.ordem_input = QSpinBox()
+        self.ordem_input.setMinimum(1)
+        
+        form_layout.addRow("Rua:", self.rua_input)
+        form_layout.addRow("Número:", self.numero_input)
+        form_layout.addRow("Bairro:", self.bairro_input)
+        form_layout.addRow("Cidade:", self.cidade_input)
+        form_layout.addRow("Estado:", self.estado_input)
+        form_layout.addRow("CEP:", self.cep_input)
+        form_layout.addRow("Complemento:", self.complemento_input)
+        form_layout.addRow("Ordem:", self.ordem_input)
+        
+        form_group.setLayout(form_layout)
+        new_delivery_layout.addWidget(form_group)
+        
+        # Botões de ação
+        buttons_layout = QHBoxLayout()
+        
+        save_btn = QPushButton("Salvar")
+        save_btn.clicked.connect(self.save_new_delivery)
+        buttons_layout.addWidget(save_btn)
+        
+        back_btn = QPushButton("Voltar")
+        back_btn.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.main_page))
+        buttons_layout.addWidget(back_btn)
+        
+        new_delivery_layout.addLayout(buttons_layout)
+        
+        # Página de Atualização
+        self.refresh_page = QWidget()
+        refresh_layout = QVBoxLayout(self.refresh_page)
+        
+        # Opções de atualização
+        options_group = QGroupBox("Opções de Atualização")
+        options_layout = QVBoxLayout()
+        
+        self.refresh_all_btn = QPushButton("Atualizar Todas as Rotas")
+        self.refresh_all_btn.clicked.connect(self.refresh_all_routes)
+        options_layout.addWidget(self.refresh_all_btn)
+        
+        self.refresh_status_btn = QPushButton("Atualizar Status")
+        self.refresh_status_btn.clicked.connect(self.refresh_status)
+        options_layout.addWidget(self.refresh_status_btn)
+        
+        options_group.setLayout(options_layout)
+        refresh_layout.addWidget(options_group)
+        
+        # Botão voltar
+        back_btn = QPushButton("Voltar")
+        back_btn.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.main_page))
+        refresh_layout.addWidget(back_btn)
+        
+        # Adicionar todas as páginas ao stacked widget
+        self.stacked_widget.addWidget(self.main_page)
+        self.stacked_widget.addWidget(self.new_route_page)
+        self.stacked_widget.addWidget(self.new_delivery_page)
+        self.stacked_widget.addWidget(self.refresh_page)
+        
+        layout.addWidget(self.stacked_widget)
 
-    def add_route(self):
-        dialog = AddRouteDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            self.refresh_routes()
+    def carregar_entregadores(self):
+        conn = create_connection()
+        if conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT id, nome FROM users WHERE nivel = 2")
+                    entregadores = cursor.fetchall()
+                    for entregador in entregadores:
+                        self.entregador_combo.addItem(entregador['nome'], entregador['id'])
+            finally:
+                conn.close()
 
-    def add_delivery(self):
-        dialog = AddDeliveryDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            self.refresh_routes()
+    def save_new_route(self):
+        # Implementar lógica de salvamento
+        self.stacked_widget.setCurrentWidget(self.main_page)
+        self.refresh_routes()
+
+    def save_new_delivery(self):
+        # Implementar lógica de salvamento
+        self.stacked_widget.setCurrentWidget(self.main_page)
+        self.refresh_routes()
+
+    def refresh_all_routes(self):
+        # Implementar lógica de atualização
+        self.stacked_widget.setCurrentWidget(self.main_page)
+        self.refresh_routes()
+
+    def refresh_status(self):
+        # Implementar lógica de atualização de status
+        self.stacked_widget.setCurrentWidget(self.main_page)
+        self.refresh_routes()
 
     def refresh_routes(self):
         # Implementação existente do refresh_routes
         pass
+
+    def show_new_route(self):
+        dialog = NewRouteWindow(self)
+        dialog.exec_()
+
+    def show_new_delivery(self):
+        dialog = NewDeliveryWindow(self)
+        dialog.exec_()
+
+    def show_update_routes(self):
+        dialog = UpdateRoutesWindow(self)
+        dialog.exec_()
+
+    def show_development_message(self):
+        QMessageBox.information(self, "Em Desenvolvimento", 
+                              "Esta funcionalidade está em desenvolvimento.")
 
 class DeliveriesPage(QWidget):
     def __init__(self, parent=None):
@@ -489,7 +647,6 @@ class MapWindow(QDialog):
         layout = QVBoxLayout(self)
         
         # Usar o widget de mapa em vez do placeholder
-        from map_widget import MapWidget
         self.map_widget = MapWidget(self)
         layout.addWidget(self.map_widget)
         
@@ -598,82 +755,66 @@ class MainWindow(QMainWindow):
         if self.is_admin:
             # Menu Rotas (Admin)
             routes_menu = menubar.addMenu("Rotas")
-            
             view_routes_action = QAction("Visualizar Rotas", self)
-            view_routes_action.triggered.connect(lambda: self.change_page("routes"))
+            view_routes_action.triggered.connect(self.manage_routes)
             routes_menu.addAction(view_routes_action)
-            
             manage_routes_action = QAction("Gerenciar Rotas", self)
             manage_routes_action.triggered.connect(self.manage_routes)
             routes_menu.addAction(manage_routes_action)
-            
             assign_routes_action = QAction("Atribuir Rotas", self)
             assign_routes_action.triggered.connect(self.assign_routes)
             routes_menu.addAction(assign_routes_action)
 
             # Menu Mapa (Admin)
             map_menu = menubar.addMenu("Mapa")
-            
             view_map_action = QAction("Ver Mapa", self)
             view_map_action.triggered.connect(self.view_map)
             map_menu.addAction(view_map_action)
-            
             view_all_routes_action = QAction("Visualizar Todas as Rotas", self)
             view_all_routes_action.triggered.connect(self.view_all_routes_map)
             map_menu.addAction(view_all_routes_action)
-            
             optimize_routes_action = QAction("Otimizar Rotas", self)
             optimize_routes_action.triggered.connect(self.optimize_routes)
             map_menu.addAction(optimize_routes_action)
-            
             traffic_monitor_action = QAction("Monitor de Tráfego", self)
             traffic_monitor_action.triggered.connect(self.monitor_traffic)
             map_menu.addAction(traffic_monitor_action)
 
             # Menu Entregadores (Admin)
             couriers_menu = menubar.addMenu("Entregadores")
-            
             manage_couriers_action = QAction("Gerenciar Entregadores", self)
             manage_couriers_action.triggered.connect(self.manage_couriers)
             couriers_menu.addAction(manage_couriers_action)
-            
             courier_performance_action = QAction("Desempenho", self)
             courier_performance_action.triggered.connect(self.view_courier_performance)
             couriers_menu.addAction(courier_performance_action)
 
             # Menu Entregas (Admin)
             deliveries_menu = menubar.addMenu("Entregas")
-            
             view_all_deliveries_action = QAction("Todas as Entregas", self)
-            view_all_deliveries_action.triggered.connect(lambda: self.change_page("deliveries"))
+            view_all_deliveries_action.triggered.connect(self.manage_deliveries)
             deliveries_menu.addAction(view_all_deliveries_action)
-            
             manage_deliveries_action = QAction("Gerenciar Entregas", self)
             manage_deliveries_action.triggered.connect(self.manage_deliveries)
             deliveries_menu.addAction(manage_deliveries_action)
 
             # Menu Relatórios (Admin)
             reports_menu = menubar.addMenu("Relatórios")
-            
             daily_report_action = QAction("Relatório Diário", self)
             daily_report_action.triggered.connect(self.generate_daily_report)
             reports_menu.addAction(daily_report_action)
-            
             monthly_report_action = QAction("Relatório Mensal", self)
             monthly_report_action.triggered.connect(self.generate_monthly_report)
             reports_menu.addAction(monthly_report_action)
-            
             performance_report_action = QAction("Relatório de Desempenho", self)
             performance_report_action.triggered.connect(self.generate_performance_report)
             reports_menu.addAction(performance_report_action)
 
             # Menu Configurações (Admin)
             settings_menu = menubar.addMenu("Configurações")
-            
             system_settings_action = QAction("Configurações do Sistema", self)
-            system_settings_action.triggered.connect(lambda: self.change_page("settings"))
+            system_settings_action.triggered.connect(self.show_theme_dialog)
             settings_menu.addAction(system_settings_action)
-            
             theme_action = QAction("Alterar Tema", self)
             theme_action.triggered.connect(self.show_theme_dialog)
             settings_menu.addAction(theme_action)
@@ -681,51 +822,45 @@ class MainWindow(QMainWindow):
         else:
             # Menu Rotas (Entregador)
             routes_menu = menubar.addMenu("Minhas Rotas")
-            
             view_my_routes_action = QAction("Visualizar Rotas", self)
-            view_my_routes_action.triggered.connect(lambda: self.change_page("routes"))
+            view_my_routes_action.triggered.connect(self.view_my_current_route)
             routes_menu.addAction(view_my_routes_action)
-            
             route_history_action = QAction("Histórico de Rotas", self)
             route_history_action.triggered.connect(self.view_route_history)
             routes_menu.addAction(route_history_action)
 
             # Menu Mapa (Entregador)
             map_menu = menubar.addMenu("Mapa")
-            
             view_my_route_action = QAction("Minha Rota Atual", self)
             view_my_route_action.triggered.connect(self.view_my_current_route)
             map_menu.addAction(view_my_route_action)
-            
             navigation_action = QAction("Navegação", self)
             navigation_action.triggered.connect(self.navigation)
             map_menu.addAction(navigation_action)
+            view_map_action = QAction("Ver Mapa", self)
+            view_map_action.triggered.connect(self.view_map)
+            map_menu.addAction(view_map_action)
 
             # Menu Entregas (Entregador)
             deliveries_menu = menubar.addMenu("Minhas Entregas")
-            
             view_my_deliveries_action = QAction("Entregas do Dia", self)
-            view_my_deliveries_action.triggered.connect(lambda: self.change_page("deliveries"))
+            view_my_deliveries_action.triggered.connect(self.update_delivery_status)
             deliveries_menu.addAction(view_my_deliveries_action)
-            
             update_status_action = QAction("Atualizar Status", self)
             update_status_action.triggered.connect(self.update_delivery_status)
             deliveries_menu.addAction(update_status_action)
 
             # Menu Perfil (Entregador)
             profile_menu = menubar.addMenu("Perfil")
-            
             view_profile_action = QAction("Meu Perfil", self)
-            view_profile_action.triggered.connect(lambda: self.change_page("profile"))
+            view_profile_action.triggered.connect(self.view_my_performance)
             profile_menu.addAction(view_profile_action)
-            
             performance_action = QAction("Meu Desempenho", self)
             performance_action.triggered.connect(self.view_my_performance)
             profile_menu.addAction(performance_action)
 
             # Menu Configurações (Entregador)
             settings_menu = menubar.addMenu("Configurações")
-            
             theme_action = QAction("Alterar Tema", self)
             theme_action.triggered.connect(self.show_theme_dialog)
             settings_menu.addAction(theme_action)
@@ -736,7 +871,6 @@ class MainWindow(QMainWindow):
         menubar.addAction(logout_action)
 
     def change_page(self, page_name):
-        self._show_development_message()
         page_map = {
             "routes": 0,
             "deliveries": 1,
@@ -744,7 +878,6 @@ class MainWindow(QMainWindow):
             "settings": 3,
             "profile": 4
         }
-        
         if page_name in page_map:
             self.stacked_widget.setCurrentIndex(page_map[page_name])
 
@@ -754,20 +887,24 @@ class MainWindow(QMainWindow):
         status_bar.showMessage("Pronto")
 
     def manage_routes(self):
-        self._show_development_message()
-        return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Gerenciar Rotas")
+        layout = QVBoxLayout(dialog)
+        close_btn = QPushButton("Fechar")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        dialog.exec_()
 
     def add_delivery(self):
-        self._show_development_message()
-        return
+        pass
 
     def generate_daily_report(self):
-        self._show_development_message()
-        return
+        dialog = PerformanceReportWindow(self)
+        dialog.exec_()
 
     def generate_monthly_report(self):
-        self._show_development_message()
-        return
+        dialog = PerformanceReportWindow(self)
+        dialog.exec_()
 
     def _apply_theme(self):
         if self.is_dark_theme:
@@ -792,28 +929,36 @@ class MainWindow(QMainWindow):
 
     # Métodos para Admin
     def manage_couriers(self):
-        self._show_development_message()
+        dialog = ManageCouriersWindow(self)
+        dialog.exec_()
 
     def assign_routes(self):
-        self._show_development_message()
+        dialog = AssignRoutesWindow(self)
+        dialog.exec_()
 
     def view_courier_performance(self):
-        self._show_development_message()
+        dialog = CourierPerformanceWindow(self)
+        dialog.exec_()
 
     def manage_deliveries(self):
-        self._show_development_message()
+        dialog = ManageDeliveriesWindow(self)
+        dialog.exec_()
 
     def generate_performance_report(self):
-        self._show_development_message()
+        dialog = PerformanceReportWindow(self)
+        dialog.exec_()
 
     def view_all_routes_map(self):
-        self._show_development_message()
+        dialog = AllRoutesMapWindow(self)
+        dialog.exec_()
 
     def optimize_routes(self):
-        self._show_development_message()
+        dialog = OptimizeRoutesWindow(self)
+        dialog.exec_()
 
     def monitor_traffic(self):
-        self._show_development_message()
+        dialog = TrafficMonitorWindow(self)
+        dialog.exec_()
 
     def view_map(self):
         dialog = MapWindow(self)
@@ -821,20 +966,24 @@ class MainWindow(QMainWindow):
 
     # Métodos para Entregador
     def view_route_history(self):
-        self._show_development_message()
+        dialog = RouteHistoryWindow(self)
+        dialog.exec_()
 
     def update_delivery_status(self):
-        self._show_development_message()
+        dialog = UpdateDeliveryStatusWindow(self)
+        dialog.exec_()
 
     def view_my_performance(self):
-        self._show_development_message()
+        dialog = MyPerformanceWindow(self)
+        dialog.exec_()
 
     def view_my_current_route(self):
-        self._show_development_message()
+        dialog = CurrentRouteWindow(self)
+        dialog.exec_()
 
     def navigation(self):
-        self._show_development_message()
+        dialog = NavigationWindow(self)
+        dialog.exec_()
 
     def _show_development_message(self):
-        QMessageBox.information(self, "Em Desenvolvimento", 
-                              "Esta funcionalidade está em desenvolvimento.")
+        pass
