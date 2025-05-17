@@ -1,24 +1,7 @@
-from .new_route_window import NewRouteWindow
-from .new_delivery_window import NewDeliveryWindow
-from .update_routes_window import UpdateRoutesWindow
-from .manage_couriers_window import ManageCouriersWindow
-from .assign_routes_window import AssignRoutesWindow
-from .courier_performance_window import CourierPerformanceWindow
-from .manage_deliveries_window import ManageDeliveriesWindow
-from .performance_report_window import PerformanceReportWindow
-from .all_routes_map_window import AllRoutesMapWindow
-from .optimize_routes_window import OptimizeRoutesWindow
-from .traffic_monitor_window import TrafficMonitorWindow
-from .route_history_window import RouteHistoryWindow
-from .update_delivery_status_window import UpdateDeliveryStatusWindow
-from .my_performance_window import MyPerformanceWindow
-from .current_route_window import CurrentRouteWindow
-from .navigation_window import NavigationWindow
-from .manage_routes_window import ManageRoutesWindow
-from .view_routes_window import ViewRoutesWindow
-from .daily_report_window import DailyReportWindow
-from .monthly_report_window import MonthlyReportWindow
-from .view_all_deliveries_window import ViewAllDeliveriesWindow
+# Removendo todas as importações de janelas que não serão mais usadas
+# Mantendo apenas as janelas que serão usadas na nova estrutura
+# ... existing code ...
 from .system_settings_window import SystemSettingsWindow
 from .my_deliveries_window import MyDeliveriesWindow
-from .my_profile_window import MyProfileWindow 
+from .my_performance_window import MyPerformanceWindow
+from .courier_map_window import CourierMapWindow 
