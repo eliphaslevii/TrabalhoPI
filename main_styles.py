@@ -125,6 +125,20 @@ def get_dark_theme_styles():
             left: 8px;
             padding: 0 4px;
         }
+
+        #theme_button {
+            border: none;
+            background-color: transparent;
+            border-radius: 12px;
+        }
+
+        #theme_button:hover {
+            background-color: rgba(128, 128, 128, 0.15);
+        }
+
+        #theme_button:pressed {
+            background-color: rgba(128, 128, 128, 0.25);
+        }
     """
 
 def get_light_theme_styles():
@@ -254,5 +268,19 @@ def get_light_theme_styles():
             subcontrol-origin: margin;
             left: 8px;
             padding: 0 4px;
+        }
+
+        #theme_button {
+            border: none;
+            background-color: transparent;
+            border-radius: 12px;
+        }
+
+        #theme_button:hover {
+            background-color: rgba(128, 128, 128, 0.15);
+        }
+
+        #theme_button:pressed {
+            background-color: rgba(128, 128, 128, 0.25);
         }
     """ 
