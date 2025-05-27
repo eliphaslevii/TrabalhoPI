@@ -14,8 +14,8 @@ def create_connection():
         conn = pymysql.connect(
             host='127.0.0.1',
             port=3306,
-            user='root',
-            password='',     # ajuste aqui se tiver senha
+            user='adminpi',
+            password='Pferd@123',     # ajuste aqui se tiver senha
             database='rotas',
             cursorclass=pymysql.cursors.DictCursor  # retorna dicts em vez de tuples
         )
