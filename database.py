@@ -67,7 +67,9 @@ def migrate_database():
                     cidade VARCHAR(100) NOT NULL,
                     estado VARCHAR(2) NOT NULL,
                     cep VARCHAR(9) NOT NULL,
-                    complemento TEXT
+                    complemento TEXT,
+                    latitude DOUBLE,
+                    longitude DOUBLE
                 );
             """)
 

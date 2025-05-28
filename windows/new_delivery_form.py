@@ -19,6 +19,8 @@ class DeliveryForm(QWidget):
         super().__init__()
         self.setWindowTitle("Nova Rota")
         self.setFixedSize(500, 400)
+        self.latitude = None
+        self.longitude = None
         self.init_ui()
 
         self.autocomplete_timer = QTimer()
@@ -33,7 +35,7 @@ class DeliveryForm(QWidget):
         self.address_input.setCompleter(self.completer)
         self.completer.activated[str].connect(self.on_suggestion_selected)
 
-        self.load_routes()  # Carrega as rotas no combo
+        self.load_routes()
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -133,7 +135,7 @@ class DeliveryForm(QWidget):
     def fetch_place_details(self, place_id):
         params = {
             'place_id': place_id,
-            'fields': 'address_component,formatted_address',
+            'fields': 'address_component,formatted_address,geometry',
             'key': API_KEY
         }
         try:
@@ -142,11 +144,15 @@ class DeliveryForm(QWidget):
             if data['status'] == 'OK':
                 components = data['result']['address_components']
                 self.fill_address_components(components)
+
+                # Captura latitude e longitude
+                location = data['result'].get('geometry', {}).get('location', {})
+                self.latitude = location.get('lat')
+                self.longitude = location.get('lng')
             else:
                 QMessageBox.warning(self, "Error", "Could not fetch address details.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error fetching details: {e}")
-
     def fill_address_components(self, components):
         self.street.clear()
         self.number.clear()
@@ -204,31 +210,31 @@ class DeliveryForm(QWidget):
 
         try:
             with conn.cursor() as cursor:
-                # Insere endereço
+                # Insere endereço com latitude e longitude
                 cursor.execute("""
-                    INSERT INTO enderecos (rua, numero, bairro, cidade, estado, cep, complemento)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (
+                      INSERT INTO enderecos (rua, numero, bairro, cidade, estado, cep, complemento, latitude, longitude)
+                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                  """, (
                     address['street'],
                     address['number'],
                     address['neighborhood'],
                     address['city'],
                     address['state'],
                     address['zip'],
-                    address['complement']
+                    address['complement'],
+                    self.latitude,
+                    self.longitude
                 ))
                 address_id = cursor.lastrowid
 
-                # Pega a maior ordem na rota selecionada
                 cursor.execute("SELECT MAX(ordem) as max_order FROM entregas WHERE rota_id = %s", (route_id,))
                 max_order = cursor.fetchone()['max_order'] or 0
                 new_order = max_order + 1
 
-                # Insere entrega na rota selecionada
                 cursor.execute("""
-                    INSERT INTO entregas (rota_id, endereco_id, ordem)
-                    VALUES (%s, %s, %s)
-                """, (route_id, address_id, new_order))
+                      INSERT INTO entregas (rota_id, endereco_id, ordem)
+                      VALUES (%s, %s, %s)
+                  """, (route_id, address_id, new_order))
 
                 conn.commit()
                 QMessageBox.information(self, "Success", "Delivery and address saved successfully!")
