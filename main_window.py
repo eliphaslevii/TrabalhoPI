@@ -263,7 +263,7 @@ class MainWindow(QMainWindow):
             if route_id:
                 self.mapa_rota = MapaRota(route_id)
                 self.mapa_rota.show()
-
+                #commit
     def delete_selected_routes(self):
         # Pega os ids das rotas marcadas para exclusão
         selected_route_ids = []
