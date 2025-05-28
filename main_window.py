@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import QApplication
 from windows import new_delivery_form
 from windows.new_delivery_form import DeliveryForm
 from windows.new_route_form import RotaForm
+from windows.map_gui import MapaRota
 
 class MainWindow(QMainWindow):
     def __init__(self, username: str):
@@ -260,9 +261,8 @@ class MainWindow(QMainWindow):
         if sender:
             route_id = sender.property("route_id")
             if route_id:
-                # Abrir janela com detalhes da rota
-                QMessageBox.information(self, "Visualizar Rota", f"Visualizando detalhes da rota ID: {route_id}")
-                # Aqui você pode abrir a janela real de visualização da rota
+                self.mapa_rota = MapaRota(route_id)
+                self.mapa_rota.show()
 
     def delete_selected_routes(self):
         # Pega os ids das rotas marcadas para exclusão
