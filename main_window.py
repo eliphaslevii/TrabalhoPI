@@ -17,6 +17,8 @@ from windows import new_delivery_form
 from windows.new_delivery_form import DeliveryForm
 from windows.new_route_form import RotaForm
 from windows.map_gui import MapaRota
+from windows.management_window import ManagementWindow
+from windows.history_window import HistoryWindow
 
 class MainWindow(QMainWindow):
     def __init__(self, username: str):
@@ -68,9 +70,9 @@ class MainWindow(QMainWindow):
 
         # Tabela de rotas
         self.routes_table = QTableWidget()
-        self.routes_table.setColumnCount(6)
+        self.routes_table.setColumnCount(7) # Adicionado +1 para o botão Finalizar
         self.routes_table.setHorizontalHeaderLabels([
-            "Marcar", "Nome", "Data", "Status", "Entregador", "Visualizar Rota"
+            "Marcar", "Nome", "Data", "Status", "Veículos", "Visualizar Rota", "Ação"
         ])
         self.routes_table.horizontalHeader().setStretchLastSection(True)
         self.routes_table.verticalHeader().setVisible(False)
@@ -82,17 +84,19 @@ class MainWindow(QMainWindow):
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(16)
 
-        self.add_route_btn = QPushButton("Nova Rota")
-        self.add_route_btn.clicked.connect(self.show_new_route)
-        buttons_layout.addWidget(self.add_route_btn)
+        # Apenas admin pode ver os botões de gerenciamento de rotas
+        if self.username == 'admin':
+            self.add_route_btn = QPushButton("Nova Rota")
+            self.add_route_btn.clicked.connect(self.show_new_route)
+            buttons_layout.addWidget(self.add_route_btn)
 
-        self.add_delivery_btn = QPushButton("Atribuir Endereços")
-        self.add_delivery_btn.clicked.connect(self.show_new_delivery)
-        buttons_layout.addWidget(self.add_delivery_btn)
+            self.add_delivery_btn = QPushButton("Atribuir Endereços")
+            self.add_delivery_btn.clicked.connect(self.show_new_delivery)
+            buttons_layout.addWidget(self.add_delivery_btn)
 
-        self.delete_route_btn = QPushButton("Excluir Rota(s)")
-        self.delete_route_btn.clicked.connect(self.delete_selected_routes)
-        buttons_layout.addWidget(self.delete_route_btn)
+            self.delete_route_btn = QPushButton("Excluir Rota(s)")
+            self.delete_route_btn.clicked.connect(self.delete_selected_routes)
+            buttons_layout.addWidget(self.delete_route_btn)
 
         self.refresh_btn = QPushButton("Atualizar")
         self.refresh_btn.clicked.connect(self.load_routes_from_db)
@@ -104,6 +108,12 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
         menubar.clear()
 
+        # Menu de Histórico (visível para todos)
+        history_menu = menubar.addMenu("Histórico")
+        history_action = QAction("Ver Rotas Concluídas", self)
+        history_action.triggered.connect(self.show_history_window)
+        history_menu.addAction(history_action)
+
         if self.username == "admin":
             settings_menu = menubar.addMenu("Configurações")
 
@@ -111,22 +121,15 @@ class MainWindow(QMainWindow):
             system_settings_action.triggered.connect(self.show_system_settings)
             settings_menu.addAction(system_settings_action)
 
+            management_action = QAction("Gerenciamento", self)
+            management_action.triggered.connect(self.show_management_window)
+            settings_menu.addAction(management_action)
+
             exit_action = QAction("Sair", self)
             exit_action.triggered.connect(self.logout)
             settings_menu.addAction(exit_action)
         else:
-            from windows import MyDeliveriesWindow, MyPerformanceWindow
-
-            entregas_menu = menubar.addMenu("Minhas Entregas")
-            entregas_action = QAction("Abrir", self)
-            entregas_action.triggered.connect(lambda: self._abrir_janela_dialog(MyDeliveriesWindow, "Minhas Entregas"))
-            entregas_menu.addAction(entregas_action)
-
-            desempenho_menu = menubar.addMenu("Meu Desempenho")
-            desempenho_action = QAction("Abrir", self)
-            desempenho_action.triggered.connect(lambda: self._abrir_janela_dialog(MyPerformanceWindow, "Meu Desempenho"))
-            desempenho_menu.addAction(desempenho_action)
-
+            # Para entregadores, apenas o menu de configurações com a opção de sair
             settings_menu = menubar.addMenu("Configurações")
             exit_action = QAction("Sair", self)
             exit_action.triggered.connect(self.logout)
@@ -171,6 +174,37 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status_bar)
         status_bar.showMessage("Pronto")
 
+    def finalizar_rota(self):
+        """Marca uma rota e todas as suas entregas como concluídas."""
+        sender = self.sender()
+        if not sender:
+            return
+
+        route_id = sender.property("route_id")
+        route_name = sender.property("route_name")
+
+        reply = QMessageBox.question(self, 'Confirmar Finalização',
+                                     f"Tem certeza que deseja finalizar a rota '{route_name}'?\n"
+                                     "Esta ação não pode ser desfeita.",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            try:
+                conn = create_connection()
+                with conn.cursor() as cursor:
+                    # Atualiza o status da rota
+                    cursor.execute("UPDATE rotas SET status = 'concluida' WHERE id = %s", (route_id,))
+                    # Atualiza o status de todas as entregas associadas
+                    cursor.execute("UPDATE entregas SET status = 'entregue' WHERE rota_id = %s", (route_id,))
+                conn.commit()
+                QMessageBox.information(self, "Sucesso", f"Rota '{route_name}' finalizada com sucesso.")
+                self.load_routes_from_db() # Recarrega a lista
+            except Exception as e:
+                conn.rollback()
+                QMessageBox.critical(self, "Erro de Banco de Dados", f"Falha ao finalizar rota: {e}")
+            finally:
+                if conn: conn.close()
+
     def show_new_route(self):
         self.new_route_win = RotaForm()
         self.new_route_win.show()
@@ -187,29 +221,53 @@ class MainWindow(QMainWindow):
         dialog = SystemSettingsWindow(self)
         dialog.exec_()
 
+    def show_history_window(self):
+        self.history_win = HistoryWindow(self.username)
+        self.history_win.show()
+
+    def show_management_window(self):
+        from windows.management_window import ManagementWindow
+        # Usamos um atributo da instância para manter a janela viva
+        self.management_win = ManagementWindow()
+        self.management_win.show()
+
     def _abrir_janela_dialog(self, DialogClass, titulo):
         dialog = DialogClass(self)
         dialog.setWindowTitle(titulo)
         dialog.exec_()
 
     def load_routes_from_db(self):
-        """
-        Busca dados da tabela 'rotas' no banco e atualiza a QTableWidget,
-        incluindo o nome do entregador via join na tabela users.
-        """
-        try:
-            conn = create_connection()
-            if not conn:
-                QMessageBox.warning(self, "Erro", "Falha ao conectar ao banco de dados.")
-                return
+        conn = create_connection()
+        if not conn:
+            return
 
+        try:
             with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT r.id, r.nome, r.data_criacao, r.status, u.nome AS entregador_nome
-                    FROM rotas r
-                    LEFT JOIN users u ON r.entregador_id = u.id
-                    ORDER BY r.data_criacao DESC
-                """)
+                # Query base para todas as rotas
+                if self.username == 'admin':
+                    # Admin vê todas as rotas
+                    query = """
+                        SELECT r.id, r.nome, r.data_criacao, r.status
+                        FROM rotas r
+                        WHERE r.status != 'concluida' 
+                        ORDER BY r.data_criacao DESC
+                    """
+                    params = []
+                else:
+                    # Entregadores veem apenas rotas onde são motoristas de algum veículo
+                    query = """
+                        SELECT DISTINCT r.id, r.nome, r.data_criacao, r.status
+                        FROM rotas r
+                        JOIN rota_veiculos rv ON r.id = rv.rota_id
+                        JOIN veiculos v ON rv.veiculo_id = v.id
+                        JOIN users u ON v.entregador_id = u.id
+                        WHERE r.status != 'concluida' 
+                        AND u.nome = %s
+                        ORDER BY r.data_criacao DESC
+                    """
+                    params = [self.username]
+                
+                cursor.execute(query, params)
                 rows = cursor.fetchall()
 
                 self.routes_table.setRowCount(0)
@@ -239,22 +297,66 @@ class MainWindow(QMainWindow):
                     status_item.setFlags(status_item.flags() ^ Qt.ItemIsEditable)
                     self.routes_table.setItem(row_index, 3, status_item)
 
-                    # Coluna 4: Nome do entregador ou 'Não atribuído'
-                    entregador_nome = row['entregador_nome'] if row['entregador_nome'] else 'Não atribuído'
-                    entregador_item = QTableWidgetItem(entregador_nome)
-                    entregador_item.setFlags(entregador_item.flags() ^ Qt.ItemIsEditable)
-                    self.routes_table.setItem(row_index, 4, entregador_item)
+                    # Coluna 4: Veículos associados
+                    veiculos_info = self.get_veiculos_rota(row['id'])
+                    veiculos_item = QTableWidgetItem(veiculos_info)
+                    veiculos_item.setFlags(veiculos_item.flags() ^ Qt.ItemIsEditable)
+                    self.routes_table.setItem(row_index, 4, veiculos_item)
 
                     # Coluna 5: Botão "Visualizar"
-                    btn = QPushButton("Visualizar")
-                    btn.setProperty("route_id", row['id'])
-                    btn.clicked.connect(self.visualizar_rota)
-                    self.routes_table.setCellWidget(row_index, 5, btn)
+                    view_btn = QPushButton("Visualizar")
+                    view_btn.setProperty("route_id", row['id'])
+                    view_btn.clicked.connect(self.visualizar_rota)
+                    self.routes_table.setCellWidget(row_index, 5, view_btn)
 
-            conn.close()
+                    # Coluna 6: Botão "Finalizar" (apenas para admin)
+                    if self.username == 'admin':
+                        finalizar_btn = QPushButton("Finalizar")
+                        finalizar_btn.setProperty("route_id", row['id'])
+                        finalizar_btn.setProperty("route_name", row['nome'])
+                        finalizar_btn.clicked.connect(self.finalizar_rota)
+                        self.routes_table.setCellWidget(row_index, 6, finalizar_btn)
 
         except Exception as e:
-            QMessageBox.warning(self, "Erro ao carregar rotas", f"Não foi possível carregar as rotas:\n{e}")
+            QMessageBox.critical(self, "Erro de Banco de Dados", f"Falha ao carregar rotas: {e}")
+        finally:
+            if conn: conn.close()
+
+    def get_veiculos_rota(self, rota_id):
+        """Obtém informações dos veículos associados a uma rota."""
+        conn = create_connection()
+        if not conn:
+            return "N/A"
+        
+        try:
+            with conn.cursor() as cursor:
+                sql = """
+                    SELECT v.placa, u.nome as motorista
+                    FROM rota_veiculos rv
+                    JOIN veiculos v ON rv.veiculo_id = v.id
+                    LEFT JOIN users u ON v.entregador_id = u.id
+                    WHERE rv.rota_id = %s
+                    ORDER BY v.placa
+                """
+                cursor.execute(sql, (rota_id,))
+                veiculos = cursor.fetchall()
+                
+                if not veiculos:
+                    return "Nenhum veículo"
+                
+                # Formatar lista de veículos
+                veiculos_info = []
+                for veiculo in veiculos:
+                    motorista = veiculo['motorista'] or 'N/A'
+                    veiculos_info.append(f"{veiculo['placa']} ({motorista})")
+                
+                return ", ".join(veiculos_info)
+                
+        except Exception as e:
+            print(f"Erro ao obter veículos da rota: {e}")
+            return "Erro"
+        finally:
+            if conn: conn.close()
 
     def visualizar_rota(self):
         sender = self.sender()

@@ -51,9 +51,7 @@ def migrate_database():
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     nome VARCHAR(100) NOT NULL,
                     data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    status ENUM('pendente', 'em_andamento', 'concluida') DEFAULT 'pendente',
-                    entregador_id INT,
-                    FOREIGN KEY (entregador_id) REFERENCES users(id)
+                    status ENUM('pendente', 'em_andamento', 'concluida') DEFAULT 'pendente'
                 );
             """)
 
@@ -83,8 +81,33 @@ def migrate_database():
                     status ENUM('pendente', 'em_andamento', 'entregue', 'cancelada') DEFAULT 'pendente',
                     data_entrega DATETIME,
                     observacoes TEXT,
+                    veiculo_id INT DEFAULT 1,
                     FOREIGN KEY (rota_id) REFERENCES rotas(id),
                     FOREIGN KEY (endereco_id) REFERENCES enderecos(id)
+                );
+            """)
+
+            # Tabela de veículos
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS veiculos (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    placa VARCHAR(10) NOT NULL UNIQUE,
+                    modelo VARCHAR(50),
+                    ano INT,
+                    capacidade_kg FLOAT,
+                    entregador_id INT,
+                    FOREIGN KEY (entregador_id) REFERENCES users(id) ON DELETE SET NULL
+                );
+            """)
+
+            # Tabela de ligação Rota <-> Veículo (Muitos-para-Muitos)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS rota_veiculos (
+                    rota_id INT,
+                    veiculo_id INT,
+                    PRIMARY KEY (rota_id, veiculo_id),
+                    FOREIGN KEY (rota_id) REFERENCES rotas(id) ON DELETE CASCADE,
+                    FOREIGN KEY (veiculo_id) REFERENCES veiculos(id) ON DELETE CASCADE
                 );
             """)
 

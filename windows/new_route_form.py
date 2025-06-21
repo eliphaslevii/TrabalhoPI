@@ -1,78 +1,106 @@
 import sys
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QMessageBox
+    QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, 
+    QMessageBox, QListWidget, QListWidgetItem, QCheckBox
 )
-from database import create_connection  # seu módulo de conexão
+from database import create_connection
 
 class RotaForm(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Criar Rota")
-        self.setGeometry(100, 100, 300, 150)
+        self.setWindowTitle("Criar Nova Rota")
+        self.setGeometry(100, 100, 400, 300)
 
         self.layout = QVBoxLayout()
-
-        self.layout.addWidget(QLabel("Nome da rota:"))
+        
+        # Nome da Rota
+        self.layout.addWidget(QLabel("Nome da Rota:"))
         self.nome_input = QLineEdit()
         self.layout.addWidget(self.nome_input)
 
-        self.layout.addWidget(QLabel("Entregador:"))
-        self.entregador_combo = QComboBox()
-        self.layout.addWidget(self.entregador_combo)
+        # Lista de Veículos
+        self.layout.addWidget(QLabel("Selecione os Veículos para a Rota:"))
+        self.veiculos_list = QListWidget()
+        self.layout.addWidget(self.veiculos_list)
 
+        # Botão Criar
         self.btn_criar = QPushButton("Criar Rota")
         self.btn_criar.clicked.connect(self.criar_rota)
         self.layout.addWidget(self.btn_criar)
 
         self.setLayout(self.layout)
+        self.carregar_veiculos_disponiveis()
 
-        self.carregar_entregadores()
-
-    def carregar_entregadores(self):
-        conn = create_connection()
-        if not conn:
-            QMessageBox.critical(self, "Erro", "Não foi possível conectar ao banco de dados.")
-            return
-
+    def carregar_veiculos_disponiveis(self):
+        """Carrega os veículos e seus motoristas na lista com checkboxes."""
         try:
+            conn = create_connection()
             with conn.cursor() as cursor:
-                cursor.execute("SELECT id, nome FROM users WHERE nivel = 2")
-                entregadores = cursor.fetchall()
-                self.entregador_combo.clear()
-                for e in entregadores:
-                    self.entregador_combo.addItem(e['nome'], e['id'])
+                sql = """
+                    SELECT v.id, v.placa, v.modelo, u.nome as entregador_nome
+                    FROM veiculos v
+                    LEFT JOIN users u ON v.entregador_id = u.id
+                    ORDER BY v.placa
+                """
+                cursor.execute(sql)
+                veiculos = cursor.fetchall()
+
+            for veiculo in veiculos:
+                item_text = f"{veiculo['placa']} - {veiculo['modelo']} (Motorista: {veiculo['entregador_nome'] or 'N/A'})"
+                item = QListWidgetItem()
+                checkbox = QCheckBox(item_text)
+                checkbox.setProperty("veiculo_id", veiculo['id'])
+                self.veiculos_list.addItem(item)
+                self.veiculos_list.setItemWidget(item, checkbox)
+
         except Exception as e:
-            QMessageBox.critical(self, "Erro", f"Erro ao carregar entregadores:\n{e}")
+            QMessageBox.critical(self, "Erro de Banco de Dados", f"Não foi possível carregar os veículos: {e}")
         finally:
-            conn.close()
+            if conn: conn.close()
 
     def criar_rota(self):
-        nome = self.nome_input.text().strip()
-        entregador_id = self.entregador_combo.currentData()
-
-        if not nome:
-            QMessageBox.warning(self, "Atenção", "Informe o nome da rota.")
+        nome_rota = self.nome_input.text().strip()
+        if not nome_rota:
+            QMessageBox.warning(self, "Atenção", "O nome da rota é obrigatório.")
             return
 
-        conn = create_connection()
-        if not conn:
-            QMessageBox.critical(self, "Erro", "Não foi possível conectar ao banco de dados.")
+        veiculos_selecionados_ids = []
+        for i in range(self.veiculos_list.count()):
+            item = self.veiculos_list.item(i)
+            checkbox = self.veiculos_list.itemWidget(item)
+            if checkbox and checkbox.isChecked():
+                veiculos_selecionados_ids.append(checkbox.property("veiculo_id"))
+
+        if not veiculos_selecionados_ids:
+            QMessageBox.warning(self, "Atenção", "Selecione pelo menos um veículo para a rota.")
             return
 
+        conn = None
         try:
+            conn = create_connection()
             with conn.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO rotas (nome, entregador_id) VALUES (%s, %s)",
-                    (nome, entregador_id)
-                )
-                conn.commit()
-                QMessageBox.information(self, "Sucesso", "Rota criada com sucesso!")
-                self.nome_input.clear()
+                # 1. Inserir a nova rota
+                cursor.execute("INSERT INTO rotas (nome) VALUES (%s)", (nome_rota,))
+                rota_id = cursor.lastrowid
+
+                # 2. Associar os veículos à rota na tabela de ligação
+                for veiculo_id in veiculos_selecionados_ids:
+                    cursor.execute("INSERT INTO rota_veiculos (rota_id, veiculo_id) VALUES (%s, %s)", (rota_id, veiculo_id))
+            
+            conn.commit()
+            QMessageBox.information(self, "Sucesso", f"Rota '{nome_rota}' criada com sucesso!")
+            self.nome_input.clear()
+            # Desmarcar checkboxes
+            for i in range(self.veiculos_list.count()):
+                item = self.veiculos_list.item(i)
+                checkbox = self.veiculos_list.itemWidget(item)
+                if checkbox: checkbox.setChecked(False)
+
         except Exception as e:
-            QMessageBox.critical(self, "Erro", f"Erro ao criar rota:\n{e}")
-            conn.rollback()
+            if conn: conn.rollback()
+            QMessageBox.critical(self, "Erro de Banco de Dados", f"Falha ao criar rota: {e}")
         finally:
-            conn.close()
+            if conn: conn.close()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

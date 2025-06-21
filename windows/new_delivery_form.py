@@ -85,19 +85,56 @@ class DeliveryForm(QWidget):
         try:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT r.id, r.nome, u.nome AS entregador_nome
+                    SELECT r.id, r.nome
                     FROM rotas r
-                    LEFT JOIN users u ON u.id = r.entregador_id
                     WHERE r.status = 'pendente'
                     ORDER BY r.data_criacao DESC
                 """)
                 routes = cursor.fetchall()
                 self.route_combo.clear()
                 for route in routes:
-                    display_text = f"{route['nome']} (Entregador: {route['entregador_nome']})"
+                    # Obter informações dos veículos da rota
+                    veiculos_info = self.get_veiculos_rota(route['id'])
+                    display_text = f"{route['nome']} - Veículos: {veiculos_info}"
                     self.route_combo.addItem(display_text, route['id'])
         finally:
             conn.close()
+
+    def get_veiculos_rota(self, rota_id):
+        """Obtém informações dos veículos associados a uma rota."""
+        conn = create_connection()
+        if not conn:
+            return "N/A"
+        
+        try:
+            with conn.cursor() as cursor:
+                sql = """
+                    SELECT v.placa, u.nome as motorista
+                    FROM rota_veiculos rv
+                    JOIN veiculos v ON rv.veiculo_id = v.id
+                    LEFT JOIN users u ON v.entregador_id = u.id
+                    WHERE rv.rota_id = %s
+                    ORDER BY v.placa
+                """
+                cursor.execute(sql, (rota_id,))
+                veiculos = cursor.fetchall()
+                
+                if not veiculos:
+                    return "Nenhum veículo"
+                
+                # Formatar lista de veículos
+                veiculos_info = []
+                for veiculo in veiculos:
+                    motorista = veiculo['motorista'] or 'N/A'
+                    veiculos_info.append(f"{veiculo['placa']} ({motorista})")
+                
+                return ", ".join(veiculos_info)
+                
+        except Exception as e:
+            print(f"Erro ao obter veículos da rota: {e}")
+            return "Erro"
+        finally:
+            if conn: conn.close()
 
     def on_text_changed(self, text):
         if len(text) < 3:
