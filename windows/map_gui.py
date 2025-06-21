@@ -99,7 +99,7 @@ class MapaRota(QWidget):
 
         self.gmaps = googlemaps.Client(key=GOOGLE_API_KEY)
 
-        self.origem = {'descricao': 'Faculdade Tuiuti - Curitiba', 'latitude': -25.4367, 'longitude': -49.2768}
+        self.origem = {'descricao': 'Universidade Tuiuti do Paraná - R. Padre Ladislau Kula, 395 - Santo Inácio, Curitiba - PR', 'latitude': -25.42504235372448, 'longitude': -49.321218430468946}
         self.destino = self.origem
         
         # Cores para ida (mais claras) e volta (mais escuras)
