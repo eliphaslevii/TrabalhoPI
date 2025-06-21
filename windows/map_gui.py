@@ -101,7 +101,10 @@ class MapaRota(QWidget):
 
         self.origem = {'descricao': 'Faculdade Tuiuti - Curitiba', 'latitude': -25.4367, 'longitude': -49.2768}
         self.destino = self.origem
-        self.cores_veiculos = ['blue', 'green', 'purple', 'red', 'orange', 'darkred', 'lightred', 'beige', 'darkblue', 'darkgreen']
+        
+        # Cores para ida (mais claras) e volta (mais escuras)
+        self.cores_ida = ['lightblue', 'lightgreen', 'lightcoral', 'lightpink', 'lightyellow', 'lightgray', 'lightcyan', 'lightsteelblue', 'lightseagreen', 'lightsalmon']
+        self.cores_volta = ['darkblue', 'darkgreen', 'darkred', 'darkmagenta', 'darkorange', 'darkgray', 'darkcyan', 'darkviolet', 'darkolivegreen', 'darkslategray']
 
         self.rota_info = self.obter_info_rota()
         self.veiculos_rota = self.obter_veiculos_rota()
@@ -260,7 +263,8 @@ class MapaRota(QWidget):
             self.lista_ordem.addItem(header_item)
             self.lista_ordem.setItemWidget(header_item, header_widget)
 
-            cor_veiculo = self.cores_veiculos[i % len(self.cores_veiculos)]
+            cor_ida = self.cores_ida[i % len(self.cores_ida)]
+            cor_volta = self.cores_volta[i % len(self.cores_volta)]
 
             for j, ponto in enumerate(pontos_ordenados):
                 item_texto = f"{j + 1}. {ponto['descricao']}"
@@ -272,14 +276,22 @@ class MapaRota(QWidget):
                 folium.Marker(
                     location=[ponto['latitude'], ponto['longitude']],
                     popup=popup_text,
-                    icon=folium.Icon(color=cor_veiculo, icon='info-sign')
+                    icon=folium.Icon(color=cor_ida, icon='info-sign')
                 ).add_to(mapa)
 
-            for leg in route['legs']:
+            # Desenhar rotas com cores diferentes para ida e volta
+            for leg_index, leg in enumerate(route['legs']):
                 leg_points = []
                 for step in leg['steps']:
                     leg_points.extend(polyline.decode(step['polyline']['points']))
-                folium.PolyLine(locations=leg_points, color=cor_veiculo, weight=5).add_to(mapa)
+                
+                # Usar cor clara para ida (primeira perna) e escura para volta (última perna)
+                if leg_index == 0:  # Primeira perna - ida
+                    cor_rota = cor_ida
+                else:  # Última perna - volta
+                    cor_rota = cor_volta
+                
+                folium.PolyLine(locations=leg_points, color=cor_rota, weight=5).add_to(mapa)
 
         self.label_tempo.setText(f"Tempo total: {tempo_total_frota // 3600}h {(tempo_total_frota % 3600) // 60}min")
         self.label_distancia.setText(f"Distância total: {distancia_total_frota / 1000:.2f} km")
