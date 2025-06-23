@@ -232,18 +232,18 @@ class MapaRota(QWidget):
 
             try:
                 directions_result = self.gmaps.directions(
-                    origin=origem_str, destination=destino_str,
-                    waypoints=waypoints_str, optimize_waypoints=optimize, mode="driving"
+                        origin=origem_str, destination=destino_str,
+                        waypoints=waypoints_str, optimize_waypoints=optimize, mode="driving"
                 )
             except Exception as e:
-                veiculo_info = self.veiculos_rota[i] if i < len(self.veiculos_rota) else {'placa': f'Veículo {i+1}'}
-                QMessageBox.warning(self, "Erro de API", f"{veiculo_info['placa']}: Erro na API do Google - {e}")
-                continue
+                    veiculo_info = self.veiculos_rota[i] if i < len(self.veiculos_rota) else {'placa': f'Veículo {i+1}'}
+                    QMessageBox.warning(self, "Erro de API", f"{veiculo_info['placa']}: Erro na API do Google - {e}")
+                    continue
 
             if not directions_result:
-                veiculo_info = self.veiculos_rota[i] if i < len(self.veiculos_rota) else {'placa': f'Veículo {i+1}'}
-                QMessageBox.warning(self, "Sem resultado", f"{veiculo_info['placa']}: Nenhum resultado retornado.")
-                continue
+                    veiculo_info = self.veiculos_rota[i] if i < len(self.veiculos_rota) else {'placa': f'Veículo {i+1}'}
+                    QMessageBox.warning(self, "Sem resultado", f"{veiculo_info['placa']}: Nenhum resultado retornado.")
+                    continue
 
             route = directions_result[0]
             tempo_total_frota += sum(leg['duration']['value'] for leg in route['legs'])
@@ -275,8 +275,8 @@ class MapaRota(QWidget):
                 popup_text = f"{veiculo_info['placa']} - Parada {j + 1}"
                 folium.Marker(
                     location=[ponto['latitude'], ponto['longitude']],
-                    popup=popup_text,
-                    icon=folium.Icon(color=cor_ida, icon='info-sign')
+                        popup=popup_text,
+                        icon=folium.Icon(color=cor_ida, icon='info-sign')
                 ).add_to(mapa)
 
             # Desenhar rotas com cores diferentes para ida e volta
@@ -305,20 +305,40 @@ class MapaRota(QWidget):
         try:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT en.rua, en.numero, en.bairro, en.cidade, en.latitude, en.longitude, e.id as entrega_id
+                    SELECT en.rua, en.numero, en.bairro, en.cidade, en.estado, en.cep, en.complemento, en.latitude, en.longitude, e.id as entrega_id
                     FROM entregas e JOIN enderecos en ON e.endereco_id = en.id
                     WHERE e.rota_id = %s
                 """, (self.rota_id,))
                 dados = cursor.fetchall()
-                return [{'descricao': f"{r['rua']}, {r['numero']}, {r['bairro']}, {r['cidade']}",
-                         'latitude': float(r['latitude']),
-                         'longitude': float(r['longitude']), 'id': r['entrega_id']}
-                        for r in dados if r['latitude'] and r['longitude']]
+                return [
+                    {
+                        'descricao': f"{r['rua']}, {r['numero']}, {r['bairro']}, {r['cidade']}",
+                        'rua': r['rua'],
+                        'numero': r['numero'],
+                        'bairro': r['bairro'],
+                        'cidade': r['cidade'],
+                        'estado': r['estado'],
+                        'cep': r['cep'],
+                        'complemento': r['complemento'],
+                        'latitude': float(r['latitude']),
+                        'longitude': float(r['longitude']),
+                        'id': r['entrega_id']
+                    }
+                    for r in dados if r['latitude'] and r['longitude']
+                ]
         except Exception as e:
             print(f"Erro ao obter endereços: {e}")
             return []
         finally:
             if conn: conn.close()
+
+    def mostrar_detalhes_endereco(self, item):
+        ponto = item.data(Qt.UserRole)
+        if not ponto or not isinstance(ponto, dict) or 'rua' not in ponto:
+            return
+
+        detalhes = f"Rua: {ponto['rua']}, {ponto['numero']}\nBairro: {ponto['bairro']}\nCidade: {ponto['cidade']} - {ponto['estado']}\nCEP: {ponto['cep']}\nComplemento: {ponto['complemento'] or '-'}"
+        QMessageBox.information(self, "Detalhes do Endereço", detalhes)
 
 
 if __name__ == "__main__":
