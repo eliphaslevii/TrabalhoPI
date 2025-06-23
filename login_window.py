@@ -134,6 +134,7 @@ class LoginWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = LoginWindow()
-    window.show()
+    app.setWindowIcon(QIcon('img/pacote.png'))
+    login_win = LoginWindow()
+    login_win.show()
     sys.exit(app.exec_())

@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QGridLayout, QCheckBox
 )
 from PyQt5.QtCore import Qt, QSettings, QDate, QSize
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtGui import QIcon, QFont, QColor
 from auth_service import AuthService
 from main_styles import get_dark_theme_styles, get_light_theme_styles
 from database import create_connection
@@ -70,9 +70,9 @@ class MainWindow(QMainWindow):
 
         # Tabela de rotas
         self.routes_table = QTableWidget()
-        self.routes_table.setColumnCount(7) # Adicionado +1 para o botão Finalizar
+        self.routes_table.setColumnCount(8) # Adicionada uma coluna para o status de problema
         self.routes_table.setHorizontalHeaderLabels([
-            "Marcar", "Nome", "Data", "Status", "Veículos", "Visualizar Rota", "Ação"
+            "Marcar", "Nome", "Data", "Status", "Problema", "Veículos", "Visualizar", "Ação"
         ])
         self.routes_table.horizontalHeader().setStretchLastSection(True)
         self.routes_table.verticalHeader().setVisible(False)
@@ -115,19 +115,15 @@ class MainWindow(QMainWindow):
         history_menu.addAction(history_action)
 
         if self.username == "admin":
-            settings_menu = menubar.addMenu("Configurações")
-
-            system_settings_action = QAction("Configuração de Sistema", self)
-            system_settings_action.triggered.connect(self.show_system_settings)
-            settings_menu.addAction(system_settings_action)
-
+            # Adiciona Gerenciamento direto na barra
             management_action = QAction("Gerenciamento", self)
             management_action.triggered.connect(self.show_management_window)
-            settings_menu.addAction(management_action)
+            menubar.addAction(management_action)
 
+            # Adiciona Sair direto na barra
             exit_action = QAction("Sair", self)
             exit_action.triggered.connect(self.logout)
-            settings_menu.addAction(exit_action)
+            menubar.addAction(exit_action)
         else:
             # Para entregadores, apenas o menu de configurações com a opção de sair
             settings_menu = menubar.addMenu("Configurações")
@@ -173,6 +169,64 @@ class MainWindow(QMainWindow):
         status_bar = QStatusBar()
         self.setStatusBar(status_bar)
         status_bar.showMessage("Pronto")
+
+    def iniciar_rota(self):
+        """Muda o status de uma rota para 'em andamento'."""
+        sender = self.sender()
+        if not sender:
+            return
+
+        route_id = sender.property("route_id")
+        route_name = sender.property("route_name")
+
+        reply = QMessageBox.question(self, 'Confirmar Início',
+                                     f"Tem certeza que deseja iniciar a rota '{route_name}'?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            try:
+                conn = create_connection()
+                with conn.cursor() as cursor:
+                    cursor.execute("UPDATE rotas SET status = 'em_andamento' WHERE id = %s", (route_id,))
+                conn.commit()
+                QMessageBox.information(self, "Sucesso", f"Rota '{route_name}' iniciada.")
+                self.load_routes_from_db()  # Recarrega a lista
+            except Exception as e:
+                if conn: conn.rollback()
+                QMessageBox.critical(self, "Erro de Banco de Dados", f"Falha ao iniciar rota: {e}")
+            finally:
+                if conn: conn.close()
+
+    def relatar_problema(self):
+        """Alterna o status de problema de uma rota."""
+        sender = self.sender()
+        if not sender:
+            return
+
+        route_id = sender.property("route_id")
+        route_name = sender.property("route_name")
+        current_status = sender.property("problema_status")
+        
+        novo_status = not current_status
+        acao = "relatar" if novo_status else "resolver"
+        
+        reply = QMessageBox.question(self, f'Confirmar Ação',
+                                     f"Tem certeza que deseja {acao} um problema para a rota '{route_name}'?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            try:
+                conn = create_connection()
+                with conn.cursor() as cursor:
+                    cursor.execute("UPDATE rotas SET problema = %s WHERE id = %s", (novo_status, route_id))
+                conn.commit()
+                QMessageBox.information(self, "Sucesso", f"Problema {acao} com sucesso.")
+                self.load_routes_from_db()
+            except Exception as e:
+                if conn: conn.rollback()
+                QMessageBox.critical(self, "Erro de Banco de Dados", f"Falha ao {acao} problema: {e}")
+            finally:
+                if conn: conn.close()
 
     def finalizar_rota(self):
         """Marca uma rota e todas as suas entregas como concluídas."""
@@ -247,7 +301,7 @@ class MainWindow(QMainWindow):
                 if self.username == 'admin':
                     # Admin vê todas as rotas
                     query = """
-                        SELECT r.id, r.nome, r.data_criacao, r.status
+                        SELECT r.id, r.nome, r.data_criacao, r.status, r.problema
                         FROM rotas r
                         WHERE r.status != 'concluida' 
                         ORDER BY r.data_criacao DESC
@@ -256,7 +310,7 @@ class MainWindow(QMainWindow):
                 else:
                     # Entregadores veem apenas rotas onde são motoristas de algum veículo
                     query = """
-                        SELECT DISTINCT r.id, r.nome, r.data_criacao, r.status
+                        SELECT DISTINCT r.id, r.nome, r.data_criacao, r.status, r.problema
                         FROM rotas r
                         JOIN rota_veiculos rv ON r.id = rv.rota_id
                         JOIN veiculos v ON rv.veiculo_id = v.id
@@ -297,25 +351,60 @@ class MainWindow(QMainWindow):
                     status_item.setFlags(status_item.flags() ^ Qt.ItemIsEditable)
                     self.routes_table.setItem(row_index, 3, status_item)
 
-                    # Coluna 4: Veículos associados
+                    # Coluna 4: Problema
+                    problema_item = QTableWidgetItem("Sim" if row['problema'] else "Não")
+                    problema_item.setFlags(problema_item.flags() ^ Qt.ItemIsEditable)
+                    problema_item.setTextAlignment(Qt.AlignCenter)
+                    self.routes_table.setItem(row_index, 4, problema_item)
+
+                    # Coluna 5: Veículos associados
                     veiculos_info = self.get_veiculos_rota(row['id'])
                     veiculos_item = QTableWidgetItem(veiculos_info)
                     veiculos_item.setFlags(veiculos_item.flags() ^ Qt.ItemIsEditable)
-                    self.routes_table.setItem(row_index, 4, veiculos_item)
+                    self.routes_table.setItem(row_index, 5, veiculos_item)
 
-                    # Coluna 5: Botão "Visualizar"
+                    # Coluna 6: Botão "Visualizar"
                     view_btn = QPushButton("Visualizar")
                     view_btn.setProperty("route_id", row['id'])
                     view_btn.clicked.connect(self.visualizar_rota)
-                    self.routes_table.setCellWidget(row_index, 5, view_btn)
+                    self.routes_table.setCellWidget(row_index, 6, view_btn)
 
-                    # Coluna 6: Botão "Finalizar" (apenas para admin)
-                    if self.username == 'admin':
+                    # Coluna 7: Layout para botões de ação
+                    action_widget = QWidget()
+                    action_layout = QHBoxLayout(action_widget)
+                    action_layout.setContentsMargins(0, 0, 0, 0)
+                    action_layout.setSpacing(5)
+
+                    if row['status'] == 'pendente':
+                        action_btn = QPushButton("Iniciar")
+                        action_btn.clicked.connect(self.iniciar_rota)
+                        action_btn.setProperty("route_id", row['id'])
+                        action_btn.setProperty("route_name", row['nome'])
+                        action_layout.addWidget(action_btn)
+
+                    elif row['status'] == 'em_andamento':
                         finalizar_btn = QPushButton("Finalizar")
+                        finalizar_btn.clicked.connect(self.finalizar_rota)
                         finalizar_btn.setProperty("route_id", row['id'])
                         finalizar_btn.setProperty("route_name", row['nome'])
-                        finalizar_btn.clicked.connect(self.finalizar_rota)
-                        self.routes_table.setCellWidget(row_index, 6, finalizar_btn)
+                        action_layout.addWidget(finalizar_btn)
+                        
+                        problema_btn_text = "Resolver" if row['problema'] else "Problema"
+                        problema_btn = QPushButton(problema_btn_text)
+                        problema_btn.clicked.connect(self.relatar_problema)
+                        problema_btn.setProperty("route_id", row['id'])
+                        problema_btn.setProperty("route_name", row['nome'])
+                        problema_btn.setProperty("problema_status", row['problema'])
+                        action_layout.addWidget(problema_btn)
+
+                    self.routes_table.setCellWidget(row_index, 7, action_widget)
+                    
+                    # Alerta visual para o admin
+                    if self.username == 'admin' and row['problema']:
+                        for col in range(self.routes_table.columnCount()):
+                            item = self.routes_table.item(row_index, col)
+                            if item:
+                                item.setBackground(QColor(255, 102, 102, 100)) # Vermelho claro
 
         except Exception as e:
             QMessageBox.critical(self, "Erro de Banco de Dados", f"Falha ao carregar rotas: {e}")
@@ -375,7 +464,7 @@ class MainWindow(QMainWindow):
                 route_name_item = self.routes_table.item(row, 1)
                 route_name = route_name_item.text() if route_name_item else ''
                 # Para obter o ID da rota, podemos recuperar via botão "Visualizar" que tem propriedade "route_id"
-                view_btn = self.routes_table.cellWidget(row, 5)
+                view_btn = self.routes_table.cellWidget(row, 6)
                 if view_btn:
                     route_id = view_btn.property("route_id")
                     if route_id:

@@ -117,6 +117,19 @@ def migrate_database():
                 """)
                 print("Coluna veiculo_id adicionada com sucesso")
             
+            # 6. Adicionar a coluna 'problema' na tabela 'rotas'
+            cursor.execute("""
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'rotas' 
+                AND COLUMN_NAME = 'problema'
+            """)
+            if not cursor.fetchall():
+                print("Adicionando coluna 'problema' à tabela 'rotas'...")
+                cursor.execute("ALTER TABLE rotas ADD COLUMN problema BOOLEAN DEFAULT FALSE")
+                print("Coluna 'problema' adicionada com sucesso.")
+
             conn.commit()
             print("Migração concluída com sucesso!")
             QMessageBox.information(None, "Sucesso", "Migração do banco de dados concluída com sucesso!")
